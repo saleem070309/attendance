@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html class="dark" dir="rtl" lang="ar">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#020a2f">
+    <title>تحضير الصف | المعلم</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs" type="module"></script>
+    <link href="styles/liquid-glass.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#7aafff",
+                        "on-primary": "#002e5d",
+                        "background": "#020a2f",
+                        "surface": "#020a2f",
+                        "surface-bright": "#182760",
+                        "tertiary": "#ff7162",
+                        "on-surface-variant": "#a0a9d5"
+                    },
+                    fontFamily: {
+                        sans: ['Tajawal', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #020a2f;
+            min-height: 100vh;
+        }
+
+        /* Apple-style Segmented Control */
+        .segmented-control {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px) saturate(1.8);
+            border-radius: 12px;
+            padding: 2px;
+            position: relative;
+            width: 140px;
+            height: 34px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .segmented-control button {
+            flex: 1;
+            position: relative;
+            z-index: 2;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.5);
+            transition: color 0.3s ease, transform 0.1s ease;
+            outline: none;
+        }
+
+        .segmented-control button.active {
+            color: white;
+        }
+
+        .segmented-control button:active {
+            transform: scale(0.92);
+        }
+
+        .segmented-control .highlight {
+            position: absolute;
+            top: 2px;
+            bottom: 2px;
+            /* Start from the right in RTL */
+            right: 2px;
+            width: calc(50% - 2px);
+            border-radius: 10px;
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1.1);
+            z-index: 1;
+        }
+
+        .highlight-present {
+            /* 0 is right side in RTL */
+            transform: translateX(0);
+            background: linear-gradient(135deg, #7aafff, #5a9fff);
+            box-shadow: 0 2px 10px rgba(122, 175, 255, 0.4);
+        }
+
+        .highlight-absent {
+            /* Move left by 100% in RTL */
+            transform: translateX(-100%);
+            background: linear-gradient(135deg, #ff7162, #ff5142);
+            box-shadow: 0 2px 10px rgba(255, 113, 98, 0.4);
+        }
+
+        /* Physics-based tap feel */
+        .segmented-control:active {
+            transform: scale(0.96);
+            transition: transform 0.1s ease;
+        }
+
+        .segmented-control:active .highlight {
+            transform: scaleX(0.98);
+        }
+    </style>
+</head>
+
+<body class="text-white pb-12 font-sans">
+    <!-- Ambient Background -->
+    <div class="liquid-glass-ambient">
+        <div class="orb orb-primary"></div>
+        <div class="orb orb-tertiary"></div>
+        <div class="orb orb-accent"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="liquid-glass-nav sticky top-0 w-full z-50 px-4 sm:px-6 py-2.5 sm:py-4 flex justify-between items-center rounded-b-[1.5rem] sm:rounded-b-[2.5rem]">
+        <div class="flex items-center gap-2 sm:gap-3 relative z-10">
+            <div onclick="window.location.href='index.html'"
+                class="liquid-glass-icon icon-error w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl cursor-pointer flex items-center justify-center">
+                <span class="material-symbols-outlined text-red-400 text-lg sm:text-xl leading-none">logout</span>
+            </div>
+            <h1 id="teacherName" class="font-bold text-sm sm:text-xl refractive-text truncate max-w-[100px] sm:max-w-none">تحضير الصف</h1>
+        </div>
+        <div id="classNameDisplay" onclick="resetClassSelection()"
+            class="liquid-glass-chip px-3 sm:px-4 py-1.5 rounded-full text-primary text-[10px] sm:text-xs font-bold cursor-pointer hover:bg-primary/15 transition-all active:scale-95 relative z-10">
+            اختر الصف
+        </div>
+    </nav>
+
+    <main class="px-4 sm:px-6 mt-6 sm:mt-8 space-y-6 sm:space-y-8 max-w-2xl mx-auto relative z-10">
+        <!-- Class Selection View -->
+        <section id="classSelector" class="space-y-4 sm:space-y-6">
+            <div class="text-center space-y-1 sm:space-y-2">
+                <h2 class="text-xl sm:text-2xl font-black refractive-text">اختر الصف للمعالجة</h2>
+                <p class="text-on-surface-variant text-xs sm:text-sm">يرجى اختيار الشعبة التي ترغب في أخذ حضورها الآن</p>
+            </div>
+            <div id="classesGrid" class="liquid-glass-container grid grid-cols-1 gap-4">
+                <!-- Classes will be injected here -->
+            </div>
+        </section>
+
+        <!-- Attendance View (Hidden by Default) -->
+        <div id="attendanceView" class="hidden space-y-8">
+            <section class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div onclick="openAiModal()"
+                    class="liquid-glass liquid-glass-interactive liquid-glass-tint-primary rounded-[1.5rem] p-4 sm:p-6 flex flex-row sm:flex-col items-center justify-center sm:justify-center h-full gap-4 sm:gap-0">
+                    <div class="liquid-glass-icon icon-primary w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:mb-4 shadow-lg shadow-primary/20 shrink-0">
+                        <span class="material-symbols-outlined text-primary text-xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">face_retouching_natural</span>
+                    </div>
+                    <div class="sm:text-center text-right">
+                        <h2 class="text-base sm:text-lg font-bold text-white mb-0.5 sm:mb-1 leading-tight">التحضير بالوجه</h2>
+                        <p class="text-on-surface-variant text-[10px]">مسح جماعي للطلاب</p>
+                    </div>
+                </div>
+
+                <div onclick="openQrModal()"
+                    class="liquid-glass liquid-glass-interactive liquid-glass-tint-tertiary rounded-[1.5rem] p-4 sm:p-6 flex flex-row sm:flex-col items-center justify-center sm:justify-center h-full gap-4 sm:gap-0">
+                    <div class="liquid-glass-icon icon-error w-12 h-12 sm:w-16 sm:h-16 rounded-2xl sm:mb-4 shadow-lg shadow-red-400/20 shrink-0">
+                        <span class="material-symbols-outlined text-tertiary text-xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+                    </div>
+                    <div class="sm:text-center text-right">
+                        <h2 class="text-base sm:text-lg font-bold text-white mb-0.5 sm:mb-1 leading-tight">التحضير بـ QR</h2>
+                        <p class="text-on-surface-variant text-[10px]">مسح التواقيع الفردية</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stats Section -->
+            <section class="grid grid-cols-2 gap-4">
+                <div class="liquid-glass liquid-glass-tint-primary rounded-[1.5rem] p-4 sm:p-6 flex flex-col items-center justify-center space-y-1 sm:space-y-2">
+                    <span class="text-on-surface-variant text-[10px] sm:text-sm font-medium">الطلاب</span>
+                    <span id="totalStudents" class="text-2xl sm:text-4xl font-extrabold refractive-text">0</span>
+                    <div class="liquid-glass-progress min-w-[30px] w-1/3">
+                        <div class="liquid-glass-progress-bar w-full"></div>
+                    </div>
+                </div>
+                <div class="liquid-glass liquid-glass-tint-tertiary rounded-[1.5rem] p-4 sm:p-6 flex flex-col items-center justify-center space-y-1 sm:space-y-2">
+                    <span class="text-on-surface-variant text-[10px] sm:text-sm font-medium">الحاضرين</span>
+                    <span id="presentCount" class="text-2xl sm:text-4xl font-extrabold text-tertiary">0</span>
+                    <div class="liquid-glass-progress min-w-[30px] w-1/3">
+                        <div id="presentProgress" class="liquid-glass-progress-bar w-0" style="background: linear-gradient(90deg, rgba(255,113,98,0.8), rgba(255,113,98,1)); box-shadow: 0 0 12px rgba(255,113,98,0.6);"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Diagnostic Logs -->
+            <div id="aiLogsContainer" class="hidden mb-6">
+                <div class="flex items-center justify-between px-2 mb-2">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider">سجل تحليل الذكاء الاصطناعي</h3>
+                    <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                </div>
+                <div id="aiLogs"
+                    class="liquid-glass liquid-glass-subtle p-4 rounded-2xl max-h-40 overflow-y-auto text-[10px] space-y-2 font-mono liquid-glass-scrollbar">
+                </div>
+            </div>
+
+            <!-- Student List -->
+            <section class="space-y-4">
+                <div class="flex justify-between items-center px-2">
+                    <h3 class="text-lg font-bold">قائمة الطلاب</h3>
+                    <button onclick="markAll('present')"
+                        class="liquid-glass-chip flex items-center gap-1 text-xs px-4 py-2 rounded-xl text-primary cursor-pointer">
+                        <span class="material-symbols-outlined text-[14px]">done_all</span> تحضير الكل
+                    </button>
+                </div>
+
+                <div id="studentList" class="liquid-glass-container space-y-3">
+                    <!-- Students will be injected here -->
+                </div>
+            </section>
+
+            <!-- Save button -->
+            <div class="pt-8 w-full">
+                <button onclick="saveAttendance()"
+                    class="liquid-button liquid-button-prominent w-full py-5 text-on-primary font-bold rounded-2xl flex items-center justify-center gap-3 shadow-xl">
+                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud_upload</span>
+                    <span>إرسال تقرير الحضور</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- AI Modal -->
+    <div id="aiModal"
+        class="hidden fixed inset-0 z-50 liquid-glass-overlay flex items-center justify-center p-6 opacity-0 transition-opacity duration-300">
+        <div class="w-full max-w-4xl flex flex-col items-center justify-center h-full relative" id="aiModalContent">
+            <button onclick="closeAiModal()"
+                class="liquid-glass-icon icon-error absolute top-0 right-0 w-11 h-11 rounded-2xl z-10 flex items-center justify-center">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+            <div class="text-center mb-6 mt-4">
+                <h3 class="text-2xl font-bold refractive-text mb-2 text-white">تحضير الذكاء الاصطناعي</h3>
+                <p id="aiCameraText" class="text-gray-400 text-sm italic">التقط صورة للتحليل والتعرف على الطلاب</p>
+            </div>
+            <div class="liquid-glass-heavy w-full max-w-3xl aspect-video rounded-[2rem] overflow-hidden relative shadow-2xl flex items-center justify-center">
+                <video id="videoAi" class="w-full h-full object-cover scale-x-[-1]"></video>
+                <canvas id="canvasAi" class="absolute inset-0 w-full h-full scale-x-[-1] hidden"></canvas>
+            </div>
+            <button id="captureBtn" onclick="captureImageAi(false)"
+                class="liquid-button liquid-button-prominent mt-8 py-4 px-12 rounded-full text-lg flex items-center justify-center gap-2 font-bold">
+                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span>
+                التقاط صورة للتحليل
+            </button>
+        </div>
+    </div>
+
+
+    <!-- QR Modal -->
+    <div id="qrModal"
+        class="hidden fixed inset-0 z-50 liquid-glass-overlay flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="w-full max-w-sm flex flex-col items-center justify-center relative" id="qrModalContent">
+            <button onclick="closeQrModal()"
+                class="liquid-glass-icon icon-error absolute -top-14 right-0 w-11 h-11 rounded-2xl z-10">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="text-center mb-6 w-full flex justify-between items-end">
+                <div class="text-right">
+                    <h3 class="text-2xl font-bold refractive-text mb-1">تحضير هجين (QR & Face)</h3>
+                    <p class="text-gray-400 text-xs">مسح الرمز أو تثبيت الوجه للتسجيل التلقائي</p>
+                </div>
+                <button onclick="switchQrCamera()"
+                    class="liquid-glass-chip text-primary px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold">
+                    <span class="material-symbols-outlined text-[18px]">flip_camera_ios</span>
+                    تبديل
+                </button>
+            </div>
+            <div class="liquid-glass-heavy w-full aspect-square rounded-[2.5rem] overflow-hidden relative shadow-2xl"
+                id="qrReaderContainer">
+                <div id="qr-reader" class="w-full h-full object-cover"></div>
+                <canvas id="canvasHybrid" class="absolute inset-0 w-full h-full scale-x-[-1] z-10 pointer-events-none"></canvas>
+                
+                <!-- Scanner Guide Overlay -->
+                <div class="absolute inset-x-0 bottom-1/4 h-px bg-primary/30 shadow-[0_0_15px_rgba(122,175,255,0.5)] animate-scanner z-10"></div>
+
+                <!-- Temp Success Overlay -->
+                <div id="qrSuccessOverlay"
+                    class="absolute inset-0 bg-success/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200 rounded-[2.5rem]">
+                    <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 scale-50 transition-transform duration-300"
+                        id="qrSuccessIcon">
+                        <span class="material-symbols-outlined text-success text-6xl font-bold">check</span>
+                    </div>
+                    <h4 class="text-white font-bold text-2xl px-4 text-center mt-2" id="qrSuccessText">تم تحضير الطالب</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/db.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script src="scripts/ui-utils.js"></script>
+    <script src="scripts/file-utils.js"></script>
+    <script src="scripts/gemini.js"></script>
+    <script src="scripts/face-detection.js"></script>
+    
+    <!-- MediaPipe Helper -->
+    <script type="module">
+        import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+        window.FaceDetector = FaceDetector;
+        window.FilesetResolver = FilesetResolver;
+    </script>
+    <script>
+        let user;
+        let currentClass = null;
+        let students = [];
+        let attendance = {};
+
+        async function init() {
+            try {
+                UI.setLoading(true);
+                user = Auth.checkAuth('teacher');
+                if (!user) return;
+                document.getElementById('teacherName').innerText = `أهلاً، ${user.name}`;
+
+                await DB.init();
+
+                if (!currentClass) {
+                    await renderClassSelector();
+                } else {
+                    renderAttendanceView();
+                }
+                UI.setLoading(false);
+            } catch (e) {
+                UI.setLoading(false);
+                UI.toast('حدث خطأ أثناء تحميل البيانات', 'error');
+            }
+        }
+
+        async function renderClassSelector() {
+            const grid = document.getElementById('classesGrid');
+            const classes = await DB.getClasses();
+
+            document.getElementById('classSelector').classList.remove('hidden');
+            document.getElementById('attendanceView').classList.add('hidden');
+            document.getElementById('classNameDisplay').innerText = 'اختر الصف';
+
+            if (classes.length === 0) {
+                grid.innerHTML = '<p class="text-center text-gray-500">لا توجد صفوف مضافة حالياً</p>';
+                return;
+            }
+
+            grid.innerHTML = classes.map(c => `
+                <div onclick="selectClass('${c.id}')"
+                    class="liquid-glass liquid-glass-interactive liquid-glass-tint-primary rounded-[1.5rem] p-4 sm:p-6 flex items-center justify-between">
+                    <div class="flex items-center gap-3 sm:gap-4">
+                        <div class="liquid-glass-icon icon-primary w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary text-xl sm:text-2xl">class</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-base sm:text-lg text-white">${c.name}</h3>
+                            <p class="text-[10px] sm:text-xs text-on-surface-variant">الشعبة: ${c.section}</p>
+                        </div>
+                    </div>
+                    <span class="material-symbols-outlined text-on-surface-variant text-sm sm:text-base">arrow_back_ios</span>
+                </div>
+            `).join('');
+        }
+
+        async function selectClass(id) {
+            const classes = await DB.getClasses();
+            currentClass = classes.find(c => c.id === id);
+            students = await DB.getStudents(id);
+            attendance = {};
+            students.forEach(s => attendance[s.id] = 'absent');
+
+            renderAttendanceView();
+        }
+
+        async function resetClassSelection() {
+            currentClass = null;
+            await renderClassSelector();
+        }
+
+        function renderAttendanceView() {
+            document.getElementById('classSelector').classList.add('hidden');
+            document.getElementById('attendanceView').classList.remove('hidden');
+            document.getElementById('classNameDisplay').innerText = `${currentClass.name} - ${currentClass.section}`;
+            renderList();
+        }
+
+        function renderList() {
+            const list = document.getElementById('studentList');
+            if (students.length === 0) {
+                UI.showSkeleton(list, 'list-item', 5);
+            }
+
+            const total = students.length;
+            const present = Object.values(attendance).filter(v => v === 'present').length;
+
+            document.getElementById('totalStudents').innerText = total;
+            document.getElementById('presentCount').innerText = present;
+            document.getElementById('presentProgress').style.width = `${(present / (total || 1)) * 100}%`;
+
+            if (total === 0) {
+                list.innerHTML = '<p class="text-center text-gray-500 liquid-glass p-10 rounded-2xl">لا يوجد طلاب في هذا الصف</p>';
+                return;
+            }
+
+            list.innerHTML = students.map(s => `
+                <div class="liquid-glass rounded-[1.25rem] p-3 sm:p-4 flex items-center justify-between transition-all gap-2" id="row-${s.id}">
+                    <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+                        <img class="w-10 h-10 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-primary/20 shrink-0" src="${s.avatar}">
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-white text-sm sm:text-base truncate">${s.name}</h4>
+                            <p class="text-gray-500 text-[10px] font-mono truncate">ID: ${s.id}</p>
+                        </div>
+                    </div>
+                    <div class="segmented-control shrink-0 scale-90 sm:scale-100 origin-left sm:origin-center">
+                        <div id="highlight-${s.id}" class="highlight ${attendance[s.id] === 'present' ? 'highlight-present' : 'highlight-absent'}"></div>
+                        <button id="btn-present-${s.id}" onclick="setStatus('${s.id}', 'present')" 
+                            class="${attendance[s.id] === 'present' ? 'active' : ''}">
+                            حاضر
+                        </button>
+                        <button id="btn-absent-${s.id}" onclick="setStatus('${s.id}', 'absent')" 
+                            class="${attendance[s.id] === 'absent' ? 'active' : ''}">
+                            غائب
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function setStatus(id, status) {
+            attendance[id] = status;
+            
+            // تحديث مباشر للعناصر للسماح بالأنيميشن
+            const highlight = document.getElementById(`highlight-${id}`);
+            const btnPresent = document.getElementById(`btn-present-${id}`);
+            const btnAbsent = document.getElementById(`btn-absent-${id}`);
+
+            if (highlight && btnPresent && btnAbsent) {
+                if (status === 'present') {
+                    highlight.classList.add('highlight-present');
+                    highlight.classList.remove('highlight-absent');
+                    btnPresent.classList.add('active');
+                    btnAbsent.classList.remove('active');
+                } else {
+                    highlight.classList.add('highlight-absent');
+                    highlight.classList.remove('highlight-present');
+                    btnAbsent.classList.add('active');
+                    btnPresent.classList.remove('active');
+                }
+            }
+
+            // تحديث شريط التقدم والإحصائيات
+            const total = students.length;
+            const present = Object.values(attendance).filter(v => v === 'present').length;
+            document.getElementById('presentCount').innerText = present;
+            document.getElementById('presentProgress').style.width = `${(present / (total || 1)) * 100}%`;
+        }
+
+        function markAll(status) {
+            students.forEach(s => attendance[s.id] = status);
+            renderList();
+        }
+
+        // QR Camera & Logic
+        let html5QrcodeScanner = null;
+        let currentFacingMode = "environment";
+
+        function openQrModal() {
+            const modal = document.getElementById('qrModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            startQrScanner();
+        }
+
+        function closeQrModal() {
+            const modal = document.getElementById('qrModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+            stopQrScanner();
+        }
+
+        async function startQrScanner() {
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            }
+
+            try {
+                await html5QrcodeScanner.start(
+                    { facingMode: currentFacingMode },
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0
+                    },
+                    onScanSuccess,
+                    (errorMessage) => { }
+                );
+
+                // Hybrid Mode: Start Face Detection on the same video element
+                const waitForVideo = (video) => {
+                    return new Promise((resolve) => {
+                        if (video.videoWidth > 0) resolve();
+                        else video.onloadedmetadata = () => resolve();
+                    });
+                };
+
+                const qrVideo = document.querySelector('#qr-reader video');
+                if (qrVideo) {
+                    await waitForVideo(qrVideo);
+                    const canvasHybrid = document.getElementById('canvasHybrid');
+                    await FaceDetection.init(qrVideo, canvasHybrid);
+                    FaceDetection.onCapture = () => captureImageAi(true); 
+                    FaceDetection.start();
+                }
+            } catch (err) {
+                console.error("QR Scanner Start Error: ", err);
+                await UI.alert('تعذر الوصول للكاميرا', 'لا يمكن فتح الكاميرا لمسح الرمز حالياً، يرجى التأكد من صلاحيات المتصفح.');
+            }
+        }
+
+        function stopQrScanner() {
+            FaceDetection.stop();
+            if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+                html5QrcodeScanner.stop().catch(console.error);
+            }
+        }
+
+        function switchQrCamera() {
+            currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+            stopQrScanner();
+            setTimeout(startQrScanner, 300);
+        }
+
+        let lastScannedUrl = "";
+        let lastScanTime = 0;
+
+        function onScanSuccess(decodedText, decodedResult) {
+            const now = Date.now();
+            if (decodedText === lastScannedUrl && (now - lastScanTime) < 2000) {
+                return;
+            }
+            lastScannedUrl = decodedText;
+            lastScanTime = now;
+
+            const student = students.find(s => s.id === decodedText);
+
+            if (student) {
+                attendance[student.id] = 'present';
+                renderList();
+                showQrSuccess(`تم الحضور:\n${student.name}`);
+            } else {
+                showQrSuccess(`طالب غير مسجل`, true);
+            }
+        }
+
+        function showQrSuccess(text, isError = false) {
+            const overlay = document.getElementById('qrSuccessOverlay');
+            const icon = document.getElementById('qrSuccessIcon');
+            const textEl = document.getElementById('qrSuccessText');
+
+            textEl.innerText = text;
+
+            if (isError) {
+                overlay.classList.replace('bg-success/90', 'bg-error/90');
+                icon.innerHTML = `<span class="material-symbols-outlined text-error text-6xl font-bold">close</span>`;
+            } else {
+                overlay.classList.replace('bg-error/90', 'bg-success/90');
+                icon.innerHTML = `<span class="material-symbols-outlined text-success text-6xl font-bold">check</span>`;
+            }
+
+            overlay.classList.remove('opacity-0');
+            setTimeout(() => {
+                icon.classList.replace('scale-50', 'scale-100');
+            }, 10);
+
+            setTimeout(() => {
+                overlay.classList.add('opacity-0');
+                icon.classList.replace('scale-100', 'scale-50');
+            }, 1500);
+        }
+
+        // AI Camera & Logic
+        const videoAi = document.getElementById('videoAi');
+        const canvasAi = document.getElementById('canvasAi');
+        let streamAi = null;
+
+        function openAiModal() {
+            const modal = document.getElementById('aiModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            startAiCamera();
+        }
+
+        function closeAiModal() {
+            const modal = document.getElementById('aiModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+            stopAiCamera();
+        }
+
+        async function startAiCamera() {
+            try {
+                streamAi = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        facingMode: 'environment'
+                    }
+                });
+                videoAi.srcObject = streamAi;
+                videoAi.play();
+                
+                // AI Modal is now MANUAL - No auto FaceDetection here as per request
+                FaceDetection.stop(); 
+                
+                document.getElementById('aiCameraText').innerText = 'التقط صورة للتحليل والتعرف على الطلاب';
+                const btn = document.getElementById('captureBtn');
+                btn.disabled = false;
+                btn.innerHTML = `<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span> التقاط صورة للتحليل`;
+            } catch (err) {
+                await UI.alert('خطأ في الكاميرا', 'تعذر الوصول للكاميرا الخاصة بالذكاء الاصطناعي، يرجى التأكد من أن الكاميرا غير مستخدمة في تطبيق آخر.');
+            }
+        }
+
+        function stopAiCamera() {
+            FaceDetection.stop();
+            if (streamAi) {
+                streamAi.getTracks().forEach(t => t.stop());
+                streamAi = null;
+            }
+        }
+
+        async function captureImageAi(isAuto = false) {
+            let activeVideo = videoAi;
+            let activeCanvas = canvasAi;
+
+            if (isAuto) {
+                // In Hybrid mode, use the QR video and hybrid canvas
+                activeVideo = document.querySelector('#qr-reader video') || videoAi;
+                activeCanvas = document.getElementById('canvasHybrid');
+                
+                // Flash effect for auto capture
+                activeCanvas.classList.add('brightness-[3]');
+                setTimeout(() => activeCanvas.classList.remove('brightness-[3]'), 150);
+            } else {
+                if (!streamAi) return;
+            }
+
+            const context = activeCanvas.getContext('2d');
+            activeCanvas.width = activeVideo.videoWidth;
+            activeCanvas.height = activeVideo.videoHeight;
+            context.drawImage(activeVideo, 0, 0);
+
+            const btn = document.getElementById('captureBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="material-symbols-outlined animate-spin">refresh</span> جاري التحليل...`;
+            }
+
+            UI.toast('جاري معالجة الصورة...', 'info');
+            if (document.getElementById('aiCameraText')) {
+                document.getElementById('aiCameraText').innerText = 'يتم معالجة الصورة لاستخراج الحضور...';
+            }
+
+
+            const imageData = UI.compressImage(activeCanvas, 0.7, 1280);
+
+            try {
+                UI.toast('جاري إرسال الصورة للتحليل...', 'info');
+                // Use Flash Lite for Auto/Hybrid (single face focus) and Pro for Manual Group Photo
+                const modelToUse = isAuto ? Gemini.MODEL_FLASH_LITE : Gemini.MODEL_PRO;
+                const result = await Gemini.scanAttendance(imageData, students, modelToUse);
+
+                if (result.reasoning) {
+                    console.log("AI Reasoning:", result.reasoning);
+                }
+
+                if (result.present_indices && Array.isArray(result.present_indices)) {
+                    UI.toast('تم التعرف على الطلاب بنجاح', 'success');
+                    result.present_indices.forEach(idx => {
+                        const studentIndex = idx - 1;
+                        if (students[studentIndex]) {
+                            attendance[students[studentIndex].id] = 'present';
+                        }
+                    });
+
+                    const count = result.present_indices.length;
+                    UI.toast(`تم التعرف على ${count} طالب/ـة بناءً على تحليل الملامح.`, 'success');
+                } else if (result.present_students) {
+                    result.present_students.forEach(name => {
+                        const s = students.find(s => s.name.includes(name));
+                        if (s) attendance[s.id] = 'present';
+                    });
+                    UI.toast('تم تحديث قائمة الحضور بنجاح', 'success');
+                }
+            } catch (err) {
+                console.error("AI Error:", err);
+                UI.toast('فشل الذكاء الاصطناعي في تمييز الوجوه. حاول مرة أخرى.', 'error');
+            } finally {
+                document.getElementById('aiCameraText').innerText = 'انتهى التحليل. يمكنك التقاط صورة أخرى لزاوية مختلفة.';
+                btn.disabled = false;
+                btn.innerHTML = `<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span> التقاط صورة أخرى للتحليل`;
+                
+                // Restart Face Detection for next student
+                if (isAuto) {
+                    setTimeout(() => FaceDetection.start(), 2000); // 2s delay to avoid double capture
+                }
+                
+                renderList();
+            }
+        }
+
+        // Diagnostic Logs Listener
+        window.addEventListener('gemini-log', (e) => {
+            const container = document.getElementById('aiLogsContainer');
+            const logs = document.getElementById('aiLogs');
+            if (container && logs) {
+                container.classList.remove('hidden');
+                const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const icon = e.detail.type === 'error' ? 'warning' : (e.detail.type === 'req' ? 'sync' : 'info');
+                const color = e.detail.type === 'error' ? 'text-error' : (e.detail.type === 'req' ? 'text-primary' : 'text-success');
+
+                const entry = document.createElement('div');
+                entry.className = `flex gap-2 items-start ${color} animate-fade-in`;
+                entry.innerHTML = `<span class="material-symbols-outlined text-[12px] mt-0.5">${icon}</span><div class="flex-1"><span class="text-[8px] opacity-70">[${time}]</span> <span>${e.detail.msg}</span></div>`;
+                logs.prepend(entry);
+            }
+        });
+
+        async function saveAttendance() {
+            const date = new Date().toISOString().split('T')[0];
+            const list = Object.entries(attendance).map(([id, status]) => ({ studentId: id, status }));
+
+            let imageData = null;
+            if (canvasAi && canvasAi.width > 0) {
+                imageData = UI.compressImage(canvasAi, 0.6, 1024);
+            }
+
+            try {
+                UI.toast('جاري حفظ التقرير...', 'info');
+                await DB.saveAttendance(date, currentClass.id, list, user.id, imageData);
+                UI.toast('تم حفظ التقرير بنجاح وجاري إرساله للمدير', 'success');
+            } catch (e) {
+                console.error("Save Error:", e);
+                if (e.name === 'QuotaExceededError') {
+                    UI.toast('فشل الحفظ: المساحة ممتلئة', 'error');
+                } else {
+                    UI.toast('حدث خطأ أثناء حفظ التقرير', 'error');
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html class="dark" dir="rtl" lang="ar">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#020a2f">
+    <title>حالة الحضور | الطالب</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles/liquid-glass.css">
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#7aafff",
+                        "background": "#020a2f",
+                        "surface": "#081542",
+                        "success": "#4ade80",
+                        "error": "#f87171"
+                    },
+                    fontFamily: { sans: ['Tajawal', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            background-color: #020a2f;
+            background-image: radial-gradient(circle at 0% 100%, rgba(122, 175, 255, 0.1), transparent 50%);
+        }
+
+        .glass {
+            background: rgba(24, 39, 96, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .calendar-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body class="text-white font-sans p-4 sm:p-6 pb-24 overflow-x-hidden selection:bg-primary/30">
+    <!-- Liquid Glass Ambient Background -->
+    <div class="liquid-glass-ambient fixed inset-0 pointer-events-none">
+        <div class="glass-orb orb-1 opacity-20"></div>
+        <div class="glass-orb orb-2 opacity-10"></div>
+        <div class="glass-orb orb-3 opacity-15"></div>
+    </div>
+
+    <header class="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-10 relative z-10 transition-all duration-700 delay-100 translate-y-0 opacity-100">
+        <button onclick="window.location.href='index.html'"
+            class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl liquid-button flex items-center justify-center text-primary group">
+            <span class="material-symbols-outlined text-lg sm:text-xl transition-transform group-hover:translate-x-1">arrow_forward</span>
+        </button>
+        <h1 class="text-xl sm:text-2xl font-bold refractive-text">تقرير حضور الطالب</h1>
+    </header>
+
+    <main class="max-w-xl mx-auto space-y-8">
+        <!-- Student Card -->
+        <div id="studentCard" class="liquid-glass-prominent p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] relative overflow-hidden z-10 transition-all duration-700 delay-200">
+            <div class="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
+                <div class="relative">
+                    <img id="studentAvatar" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/30 object-cover shadow-2xl" src="">
+                    <div class="absolute inset-0 rounded-full border border-white/10 pointer-events-none"></div>
+                </div>
+                <div>
+                    <h2 id="studentName" class="text-xl sm:text-3xl font-black refractive-text leading-tight">اسم الطالب</h2>
+                    <p id="studentInfo" class="text-primary font-bold text-[10px] sm:text-sm bg-primary/10 border border-primary/20 px-3 py-1 rounded-full inline-block mt-2">الصف العاشر - أ</p>
+                </div>
+            </div>
+
+            <button onclick="openQrModal()" class="w-full mb-6 sm:mb-8 liquid-button-refractive py-3.5 sm:py-4 rounded-xl sm:rounded-2xl flex items-center justify-center gap-2 sm:gap-3 transition-all active:scale-95 group">
+                <span class="material-symbols-outlined transition-transform group-hover:rotate-12 text-sm sm:text-base">qr_code_2</span>
+                <span class="font-black text-sm sm:text-base">عرض رمز الحضور (QR)</span>
+            </button>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="liquid-glass px-4 py-6 rounded-3xl flex flex-col items-center">
+                    <span class="text-xs font-bold text-gray-400 mb-2">نسبة الحضور</span>
+                    <span id="attendanceRate" class="text-3xl font-black text-success drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">0%</span>
+                </div>
+                <div class="liquid-glass px-4 py-6 rounded-3xl flex flex-col items-center">
+                    <span class="text-xs font-bold text-gray-400 mb-2">حالة اليوم</span>
+                    <span id="todayStatus" class="font-black text-gray-300">لم يتم التسجيل</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Navigation -->
+        <section class="liquid-glass p-5 sm:p-8 rounded-[2rem] sm:rounded-[3rem] space-y-6 sm:space-y-8 relative z-10 transition-all duration-700 delay-300">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+                <h3 class="text-xl font-bold flex items-center gap-3 refractive-text">
+                    <span class="material-symbols-outlined text-primary">calendar_month</span>
+                    سجل الحضور
+                </h3>
+                <div class="flex items-center gap-1 sm:gap-2 bg-white/5 rounded-2xl p-1 border border-white/5 backdrop-blur-md w-full sm:w-auto justify-between sm:justify-start">
+                    <button onclick="changeMonth(-1)" class="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl hover:bg-white/10 text-primary transition-all">
+                        <span class="material-symbols-outlined text-base sm:text-xl">chevron_right</span>
+                    </button>
+                    <span id="currentMonthLabel" class="text-[11px] sm:text-sm font-black min-w-[70px] sm:min-w-[100px] text-center refractive-text">أبريل 2026</span>
+                    <button onclick="changeMonth(1)" class="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl hover:bg-white/10 text-primary transition-all">
+                        <span class="material-symbols-outlined text-base sm:text-xl">chevron_left</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 font-bold mb-2">
+                <div>ح</div><div>ن</div><div>ث</div><div>ر</div><div>خ</div><div>ج</div><div>س</div>
+            </div>
+
+            <div id="calendarGrid" class="grid grid-cols-7 gap-2">
+                <!-- Circular days -->
+            </div>
+
+            <div class="flex flex-wrap gap-4 pt-4 border-t border-white/5 text-[10px] text-gray-400">
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-success"></span> حاضر</div>
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-error"></span> غائب</div>
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-400"></span> عطلة</div>
+                <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-gray-600"></span> لا تقرير</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- QR Modal -->
+    <div id="qrModal" class="hidden fixed inset-0 z-[100] bg-black/40 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-all duration-500 overflow-hidden">
+        <div class="liquid-glass-ambient absolute inset-0 pointer-events-none opacity-50">
+            <div class="glass-orb orb-1"></div>
+        </div>
+        
+        <div class="liquid-glass-prominent p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3.5rem] flex flex-col items-center max-w-sm w-full scale-90 blur-xl transition-all duration-500 relative z-10" id="qrModalContent">
+            <div class="w-12 h-1.5 bg-white/20 rounded-full mb-8"></div>
+            
+            <h3 class="text-xl sm:text-2xl font-black mb-6 text-white flex flex-col items-center gap-2 sm:gap-3 text-center refractive-text">
+                <span class="material-symbols-outlined text-3xl sm:text-4xl text-primary animate-pulse">qr_code_scanner</span>
+                رمز التحضير الذكي
+            </h3>
+            
+            <div class="bg-white p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative group transition-transform hover:scale-105 duration-500 border-4 border-white">
+                <div id="qrcode" class="relative z-10 mix-blend-multiply"></div>
+                <div class="absolute inset-0 rounded-[2rem] sm:rounded-[2.5rem] border-4 border-primary/20 animate-ping opacity-20"></div>
+            </div>
+            
+            <p class="text-gray-400 text-xs sm:text-sm mt-8 mb-8 text-center leading-relaxed font-medium">
+                قم بتوجيه الرمز نحو كاميرا المعلم<br>
+                <span class="text-primary/70 font-bold">سيتم تسجيل حضورك تلقائياً وبدقة عالية</span>
+            </p>
+            
+            <button onclick="closeQrModal()" class="w-full liquid-button py-4 rounded-xl sm:rounded-2xl font-black text-white transition-all active:scale-95 shadow-lg shadow-primary/10">إغلاق النافذة</button>
+        </div>
+    </div>
+
+    <script src="scripts/db.js"></script>
+    <script src="scripts/ui-utils.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const studentId = urlParams.get('id');
+
+        let viewDate = new Date(); // Current date being viewed
+
+        let cachedData = null;
+
+        async function init() {
+            try {
+                UI.setLoading(true);
+                await DB.init();
+                
+                // Parallel fetch
+                const [students, classes, allRecords, holidays] = await Promise.all([
+                    DB.getStudents(),
+                    DB.getClasses(),
+                    DB.getRecords(),
+                    DB.getCollection(DB.KEYS.HOLIDAYS)
+                ]);
+
+                cachedData = { students, classes, allRecords, holidays };
+
+                const student = students.find(s => s.id === studentId);
+                if (!student) {
+                    UI.toast('الطالب غير موجود', 'error');
+                    setTimeout(() => window.location.href = 'index.html', 2000);
+                    return;
+                }
+
+                const className = classes.find(c => c.id === student.classId);
+                document.getElementById('studentName').innerText = student.name;
+                document.getElementById('studentInfo').innerText = className ? `${className.name} - ${className.section}` : '';
+                document.getElementById('studentAvatar').src = student.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + student.name;
+
+                await renderAttendance();
+
+                // Generate QR Code
+                document.getElementById("qrcode").innerHTML = ""; 
+                new QRCode(document.getElementById("qrcode"), {
+                    text: student.id,
+                    width: 200,
+                    height: 200,
+                    colorDark : "#081542",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+                UI.setLoading(false);
+            } catch (e) {
+                console.error(e);
+                UI.setLoading(false);
+                UI.toast('خطأ في جلب بيانات الطالب', 'error');
+            }
+        }
+
+        async function changeMonth(diff) {
+            viewDate.setMonth(viewDate.getMonth() + diff);
+            await renderAttendance();
+        }
+
+        async function renderAttendance() {
+            if (!cachedData) return;
+            
+            const { students, allRecords, holidays } = cachedData;
+            const student = students.find(s => s.id === studentId);
+            const todayDate = new Date();
+            const todayStr = todayDate.toISOString().split('T')[0];
+            
+            const studentRecordsDetailed = [];
+            allRecords.forEach(r => {
+                const sDetail = r.details.find(d => d.studentId === studentId);
+                if (sDetail) {
+                    studentRecordsDetailed.push({ date: r.date, status: sDetail.status });
+                }
+            });
+            
+            const monthLabel = viewDate.toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
+            document.getElementById('currentMonthLabel').innerText = monthLabel;
+
+            const presentDays = studentRecordsDetailed.filter(r => r.status === 'present').length;
+            const totalDaysRecorded = studentRecordsDetailed.length;
+            document.getElementById('attendanceRate').innerText = totalDaysRecorded > 0 
+                ? `${Math.round((presentDays / totalDaysRecorded) * 100)}%`
+                : '0%';
+
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            const firstDayIndex = new Date(year, month, 1).getDay(); 
+            const lastDay = new Date(year, month + 1, 0).getDate();
+            
+            const grid = document.getElementById('calendarGrid');
+            UI.showSkeleton(grid, 'list-item', 31); // Calendar skeleton
+            grid.innerHTML = '';
+
+            // 1. Add padding for start of month
+            for (let i = 0; i < firstDayIndex; i++) {
+                grid.innerHTML += '<div></div>';
+            }
+
+            const checkHoliday = (dateStr) => {
+                const date = new Date(dateStr);
+                const day = date.getDay();
+                if (day === 5 || day === 6) return true;
+                return holidays.some(h => h.date === dateStr);
+            };
+
+            // 2. Render each day as a circle
+            for (let d = 1; d <= lastDay; d++) {
+                const dayDate = new Date(year, month, d);
+                const dateStr = dayDate.toISOString().split('T')[0];
+                const rec = studentRecordsDetailed.find(r => r.date === dateStr);
+                const isHoliday = checkHoliday(dateStr);
+                const classReportSent = allRecords.some(r => r.date === dateStr && r.classId === student.classId);
+                const isFuture = dateStr > todayStr;
+                const isToday = dateStr === todayStr;
+
+                let circleClass = 'liquid-glass text-white/20';
+                let icon = '';
+                let opacity = 'opacity-100';
+
+                if (isFuture) {
+                    opacity = 'opacity-20';
+                } else if (isHoliday) {
+                    circleClass = 'bg-orange-500/10 border-orange-500/20 text-orange-400';
+                    icon = '<span class="material-symbols-outlined text-[10px] absolute -top-1 -right-1 text-orange-400 bg-background rounded-full">lock</span>';
+                } else if (classReportSent) {
+                    if (rec) {
+                        if (rec.status === 'present') {
+                            circleClass = 'bg-success/20 border-success/40 text-success shadow-[0_0_20px_rgba(74,222,128,0.3)] ring-1 ring-success/50';
+                        } else {
+                            circleClass = 'bg-error/20 border-error/40 text-error shadow-[0_0_20px_rgba(248,113,113,0.3)] ring-1 ring-error/50';
+                        }
+                    } else {
+                        circleClass = 'bg-white/5 border-white/10 text-gray-500';
+                    }
+                } else {
+                    circleClass = 'bg-white/5 border-white/5 text-gray-700 border-dashed';
+                    icon = '<span class="material-symbols-outlined text-[10px] absolute -top-1 -right-1 text-gray-600 bg-background rounded-full">event_busy</span>';
+                }
+
+                const todayPulse = isToday ? 'ring-2 sm:ring-4 ring-primary/40 ring-offset-2 sm:ring-offset-4 ring-offset-background scale-105 sm:scale-110 !opacity-100 z-10' : '';
+
+                grid.innerHTML += `
+                    <div class="relative group transition-all duration-300 hover:scale-110">
+                        <div class="aspect-square rounded-xl sm:rounded-2xl border flex flex-col items-center justify-center text-[10px] sm:text-sm font-black transition-all ${circleClass} ${opacity} ${todayPulse}">
+                            ${d}
+                        </div>
+                        ${icon}
+                    </div>
+                `;
+            }
+
+            // Today Status card update
+            const todayRecord = studentRecordsDetailed.find(r => r.date === todayStr);
+            const todayEl = document.getElementById('todayStatus');
+            if (checkHoliday(todayStr)) {
+                todayEl.innerText = 'عطلة رسمية';
+                todayEl.className = 'font-bold text-orange-400';
+            } else if (todayRecord) {
+                todayEl.innerText = todayRecord.status === 'present' ? 'حاضر' : 'غائب';
+                todayEl.className = todayRecord.status === 'present' ? 'font-bold text-success' : 'font-bold text-error';
+            } else {
+                todayEl.innerText = 'لم يحضر بعد';
+                todayEl.className = 'font-bold text-gray-500';
+            }
+        }
+
+        function openQrModal() {
+            const modal = document.getElementById('qrModal');
+            const content = document.getElementById('qrModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-90', 'blur-xl');
+                content.classList.add('scale-100', 'blur-0');
+            }, 50);
+        }
+
+        function closeQrModal() {
+            const modal = document.getElementById('qrModal');
+            const content = document.getElementById('qrModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100', 'blur-0');
+            content.classList.add('scale-90', 'blur-xl');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 500);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

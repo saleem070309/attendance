@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html class="dark" dir="rtl" lang="ar">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#020a2f">
+    <title>لوحة التحكم | الإدارة</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link href="styles/liquid-glass.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#7aafff",
+                        "background": "#020a2f",
+                        "surface": "#081542",
+                        "error": "#ff716c"
+                    },
+                    fontFamily: { sans: ['Tajawal', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="styles/liquid-glass.css">
+    <style>
+        body {
+            background-color: #020a2f;
+            overflow-x: hidden;
+        }
+    </style>
+</head>
+<body class="text-white font-sans">
+    <div class="liquid-glass-ambient">
+        <div class="orb orb-primary"></div>
+        <div class="orb orb-tertiary"></div>
+        <div class="orb orb-accent"></div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-20 relative z-10">
+        <header class="flex justify-between items-center mb-6 sm:mb-10 liquid-glass-nav p-4 sm:p-6 -mx-4 sm:-mx-6 -mt-4 rounded-b-[1.5rem] sm:rounded-b-[2rem]">
+        <div>
+            <h1 class="text-xl sm:text-3xl font-extrabold refractive-text">لوحة التحكم</h1>
+            <p class="text-gray-400 text-[10px] sm:text-sm">أهلاً بك في نظام إدارة المدرسة</p>
+        </div>
+        <button onclick="Auth.logout()" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl liquid-glass-icon icon-error interactive flex items-center justify-center">
+            <span class="material-symbols-outlined text-sm sm:text-base">power_settings_new</span>
+        </button>
+    </header>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 mb-8 sm:mb-10">
+        <div class="liquid-glass liquid-glass-prominent liquid-glass-stat stat-primary p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
+            <p class="text-gray-400 text-[8px] sm:text-[10px] font-semibold uppercase tracking-wider mb-1">الطلاب</p>
+            <h2 id="statStudents" class="text-xl sm:text-4xl font-black refractive-text mt-1">0</h2>
+        </div>
+        <div class="liquid-glass liquid-glass-prominent liquid-glass-stat stat-success p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
+            <p class="text-gray-400 text-[8px] sm:text-[10px] font-semibold uppercase tracking-wider mb-1">المعلمون</p>
+            <h2 id="statTeachers" class="text-xl sm:text-4xl font-black refractive-text mt-1">0</h2>
+        </div>
+        <div class="liquid-glass liquid-glass-prominent liquid-glass-stat stat-warning p-4 sm:p-6 rounded-2xl sm:rounded-3xl col-span-2 md:col-span-1">
+            <p class="text-gray-400 text-[8px] sm:text-[10px] font-semibold uppercase tracking-wider mb-1 text-center md:text-right">الفصول</p>
+            <h2 id="statClasses" class="text-xl sm:text-4xl font-black refractive-text mt-1 text-center md:text-right">0</h2>
+        </div>
+    </div>
+
+    <!-- Management Sections -->
+    <div class="space-y-12">
+        <!-- Reports & Proof Section -->
+        <section>
+            <div id="filterBar" class="liquid-glass p-5 rounded-3xl mb-8 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-2 mr-2">تصفية بالتاريخ</label>
+                    <input type="date" id="filterDate" onchange="renderReports()" class="w-full liquid-glass-input rounded-xl p-3 text-xs text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-2 mr-2">تصفية بالفصل</label>
+                    <select id="filterClass" onchange="renderReports()" class="w-full liquid-glass-input rounded-xl p-3 text-xs text-white">
+                        <option value="">جميع الفصول</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-gray-400 mb-2 mr-2">تصفية بالمعلم</label>
+                    <select id="filterTeacher" onchange="renderReports()" class="w-full liquid-glass-input rounded-xl p-3 text-xs text-white">
+                        <option value="">جميع المعلمين</option>
+                    </select>
+                </div>
+                <button onclick="clearFilters()" class="liquid-glass interactive py-3 px-4 rounded-xl text-xs font-bold text-gray-300">مسح التصفية</button>
+            </div>
+
+            <div id="reportsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Records with images will be injected here -->
+            </div>
+        </section>
+
+        <!-- Teachers Management -->
+        <section>
+            <div class="flex justify-between items-center mb-4 sm:mb-6">
+                <h3 class="text-xl sm:text-2xl font-black refractive-text flex items-center gap-2 sm:gap-3">
+                    <span class="material-symbols-outlined text-primary scale-110 sm:scale-125">group</span>
+                    إدارة المعلمين
+                </h3>
+                <button onclick="showAddTeacherModal()" class="liquid-button liquid-button-prominent text-background px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black">إضافة معلم</button>
+            </div>
+            <div class="liquid-glass-prominent rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden">
+                <!-- Desktop Header -->
+                <div class="hidden sm:grid grid-cols-12 gap-4 p-5 px-6 bg-white/[0.02] border-b border-white/[0.05]">
+                    <div class="sm:col-span-3 text-gray-500 text-[9px] font-black uppercase tracking-[0.2em]">المعلم</div>
+                    <div class="sm:col-span-2 text-gray-500 text-[9px] font-black uppercase tracking-[0.2em]">الرقم الوزاري</div>
+                    <div class="sm:col-span-3 text-gray-500 text-[9px] font-black uppercase tracking-[0.2em] text-center">الرتبة</div>
+                    <div class="sm:col-span-4 text-gray-500 text-[9px] font-black uppercase tracking-[0.2em] text-left">إجراءات الإدارة</div>
+                </div>
+                
+                <div id="teacherTable" class="divide-y divide-white/5">
+                    <!-- Rows will be injected here as grid items/cards -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Classes Management -->
+        <section>
+            <div class="flex justify-between items-center mb-4 sm:mb-6">
+                <h3 class="text-xl sm:text-2xl font-black refractive-text flex items-center gap-2 sm:gap-3">
+                    <span class="material-symbols-outlined text-primary scale-110 sm:scale-125">meeting_room</span>
+                    الفصول والطلاب
+                </h3>
+            </div>
+            <div id="classGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- Class cards -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Modals Container -->
+    <div id="modalOverlay" class="fixed inset-0 liquid-glass-overlay z-50 hidden flex items-center justify-center p-4">
+        <!-- Add/Edit Teacher Modal -->
+        <div id="teacherModal" class="liquid-glass-modal w-full max-w-md p-8 rounded-[2.5rem] hidden">
+            <h2 id="teacherModalTitle" class="text-2xl font-black refractive-text mb-8">إضافة معلم جديد</h2>
+            <form onsubmit="handleAddTeacher(event)" class="space-y-5 text-right">
+                <input type="hidden" id="tEditId">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">اسم المعلم</label>
+                    <input type="text" id="tName" required class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">الرقم الوزاري</label>
+                    <input type="text" id="tMinistryId" required class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">كلمة السر</label>
+                    <input type="password" id="tPassword" required class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">الرتبة</label>
+                    <select id="tRole" class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                        <option value="teacher">معلم</option>
+                        <option value="admin">مدير</option>
+                    </select>
+                </div>
+                <div class="flex gap-4 pt-6">
+                    <button type="submit" class="flex-1 liquid-button liquid-button-prominent text-background font-black py-4 rounded-2xl">حفظ</button>
+                    <button type="button" onclick="closeModal()" class="flex-1 liquid-glass interactive py-4 rounded-2xl font-bold text-gray-400">إلغاء</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Add/Edit Class Modal -->
+        <div id="classModal" class="liquid-glass-modal w-full max-w-md p-8 rounded-[2.5rem] hidden">
+            <h2 id="classModalTitle" class="text-2xl font-black refractive-text mb-8">إضافة فصل جديد</h2>
+            <form onsubmit="handleAddClass(event)" class="space-y-5 text-right">
+                <input type="hidden" id="cEditId">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">اسم الفصل</label>
+                    <input type="text" id="cName" placeholder="مثال: الصف التاسع" required class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">الشعبة</label>
+                    <input type="text" id="cSection" placeholder="مثال: أ" required class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                </div>
+                <div class="flex gap-4 pt-6">
+                    <button type="submit" class="flex-1 liquid-button liquid-button-prominent text-background font-black py-4 rounded-2xl">حفظ</button>
+                    <button type="button" onclick="closeModal()" class="flex-1 liquid-glass interactive py-4 rounded-2xl font-bold text-gray-400">إلغاء</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Add/Edit Student Modal -->
+        <div id="studentModal" class="liquid-glass-modal w-full max-w-md p-8 rounded-[2.5rem] hidden">
+            <h2 id="studentModalTitle" class="text-2xl font-black refractive-text mb-8">إضافة طالب جديد</h2>
+            <form onsubmit="handleAddStudent(event)" class="space-y-5 text-right">
+                <input type="hidden" id="sClassId">
+                <input type="hidden" id="sEditId">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">اسم الطالب</label>
+                    <input type="text" id="sName" required class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">رقم الطالب الأكاديمي</label>
+                    <input type="text" id="sId" required class="w-full liquid-glass-input rounded-2xl p-4 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2 mr-2">صورة الطالب للتعرف الذكي (اختياري)</label>
+                    <div class="relative group">
+                        <input type="file" id="sImage" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                        <div class="liquid-glass-input rounded-2xl p-4 flex items-center justify-between pointer-events-none group-hover:border-primary/50 transition-all">
+                            <span class="text-gray-400 text-sm">اختر صورة...</span>
+                            <span class="material-symbols-outlined text-primary">image</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-4 pt-6">
+                    <button type="submit" class="flex-1 liquid-button liquid-button-prominent text-background font-black py-4 rounded-2xl">حفظ</button>
+                    <button type="button" onclick="closeModal()" class="flex-1 liquid-glass interactive py-4 rounded-2xl font-bold text-gray-400">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.min.js"></script>
+    <script src="scripts/db.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script src="scripts/ui-utils.js"></script>
+    <script src="scripts/file-utils.js"></script>
+    <script src="scripts/gemini.js"></script>
+    <script src="scripts/agent.js"></script>
+    <script>
+        Auth.checkAuth('admin');
+
+        async function init() {
+            try {
+                UI.setLoading(true);
+                user = Auth.checkAuth('admin');
+                if (!user) return;
+
+                await DB.init();
+                await Agent.init(); // Initialize AI Agent
+                
+                // Parallel fetching for speed
+                const p1 = renderStats();
+                const p2 = populateFilters();
+                const p3 = renderReports(); 
+                const p4 = renderTeachers();
+                const p5 = renderClasses();
+                
+                await Promise.all([p1, p2, p3, p4, p5]);
+                UI.setLoading(false);
+            } catch (e) {
+                UI.setLoading(false);
+                UI.toast('خطأ في تحميل البيانات', 'error');
+                console.error('Initialization error:', e);
+            }
+        }
+
+        async function populateFilters() {
+            const classSelect = document.getElementById('filterClass');
+            const teacherSelect = document.getElementById('filterTeacher');
+            
+            const classes = await DB.getClasses();
+            const teachers = await DB.getTeachers();
+
+            classSelect.innerHTML = '<option value="">جميع الفصول</option>' + 
+                classes.map(c => `<option value="${c.id}">${c.name} - ${c.section}</option>`).join('');
+
+            teacherSelect.innerHTML = '<option value="">جميع المعلمين</option>' + 
+                teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        }
+
+        function clearFilters() {
+            document.getElementById('filterDate').value = '';
+            document.getElementById('filterClass').value = '';
+            document.getElementById('filterTeacher').value = '';
+            renderReports();
+        }
+
+        async function renderStats() {
+            const students = await DB.getCollection(DB.KEYS.STUDENTS);
+            const teachers = await DB.getCollection(DB.KEYS.TEACHERS);
+            const classes = await DB.getCollection(DB.KEYS.CLASSES);
+            document.getElementById('statStudents').innerText = students.length;
+            document.getElementById('statTeachers').innerText = teachers.length;
+            document.getElementById('statClasses').innerText = classes.length;
+        }
+
+        async function renderReports() {
+            const grid = document.getElementById('reportsGrid');
+            UI.showSkeleton(grid, 'card', 2);
+            
+            const [teachers, classes, allRecords] = await Promise.all([
+                DB.getTeachers(),
+                DB.getClasses(),
+                DB.getCollection(DB.KEYS.RECORDS)
+            ]);
+            
+            const filterDate = document.getElementById('filterDate').value;
+            const filterClass = document.getElementById('filterClass').value;
+            const filterTeacher = document.getElementById('filterTeacher').value;
+
+            let records = allRecords;
+
+            if (filterDate) records = records.filter(r => r.date === filterDate);
+            if (filterClass) records = records.filter(r => r.classId === filterClass);
+            if (filterTeacher) records = records.filter(r => r.teacherId === filterTeacher);
+
+            records = records.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            if (records.length === 0) {
+                grid.innerHTML = '<div class="col-span-full glass p-10 text-center text-gray-500 rounded-3xl">لا توجد تقارير مطابقة للبحث</div>';
+                return;
+            }
+
+            grid.innerHTML = records.map(r => {
+                if (!r.details || !Array.isArray(r.details)) return '';
+                const teacher = teachers.find(t => t.id === r.teacherId) || { name: 'غير معروف' };
+                const cls = classes.find(c => c.id === r.classId) || { name: 'صف محذوف' };
+                const presentCount = r.details.filter(d => d.status === 'present').length;
+                const totalCount = r.details.length;
+
+                return `
+                <div class="liquid-glass liquid-glass-prominent rounded-[2rem] overflow-hidden group border border-white/5 hover:border-primary/30 transition-all">
+                    <div class="h-48 bg-cover bg-center cursor-pointer relative" style="background-image: url(${r.image || 'https://via.placeholder.com/400x200?text=No+Image'})" onclick="showFullReport('${r.id}')">
+                        <div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-70"></div>
+                        <div class="absolute bottom-4 right-5 group-hover:bottom-6 transition-all">
+                            <h4 class="font-black text-xl refractive-text">${cls.name}</h4>
+                            <p class="text-xs text-primary font-bold uppercase tracking-wider">${teacher.name} • ${r.date}</p>
+                        </div>
+                    </div>
+                    <div class="p-6 flex justify-between items-center bg-white/5">
+                        <div class="text-xs space-y-1">
+                            <p class="text-gray-400 font-bold uppercase tracking-widest text-[10px]">حالة الحضور</p>
+                            <p class="font-black text-primary text-base">${presentCount} <span class="text-[10px] text-gray-500 font-medium">حاضر</span> / ${totalCount} <span class="text-[10px] text-gray-500 font-medium">إجمالي</span></p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="deleteReport('${r.id}', this)" class="w-11 h-11 flex items-center justify-center rounded-2xl bg-error/10 text-error border border-error/20 hover:bg-error hover:text-white transition-all shadow-lg shadow-error/10">
+                                <span class="material-symbols-outlined">delete</span>
+                            </button>
+                            <button onclick="showFullReport('${r.id}')" class="liquid-button bg-primary/10 text-primary px-5 py-3 rounded-2xl border border-primary/20 hover:bg-primary hover:text-background transition-all font-black text-xs">التفاصيل</button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        async function deleteReport(id, el) {
+            if (await UI.confirm('حذف التقرير', 'هل أنت متأكد من حذف هذا التقرير نهائياً؟')) {
+                const card = el.closest('.liquid-glass');
+                await UI.optimistic(card, DB.deleteRecord(id), 'فشل حذف التقرير');
+                renderStats(); // Update totals in background
+            }
+        }
+
+        let currentEditingReport = null;
+
+        async function showFullReport(id) {
+            const records = await DB.getCollection(DB.KEYS.RECORDS);
+            const record = records.find(r => r.id === id);
+            if (!record) return;
+            currentEditingReport = JSON.parse(JSON.stringify(record));
+            await renderReportDetailModal();
+        }
+
+        async function toggleStudentStatus(studentId) {
+            const detail = currentEditingReport.details.find(d => d.studentId === studentId);
+            if (detail) {
+                detail.status = detail.status === 'present' ? 'absent' : 'present';
+                await renderReportDetailModal();
+            }
+        }
+
+        async function saveReportChanges() {
+            await DB.updateRecordDetails(currentEditingReport.id, currentEditingReport.details);
+            document.getElementById('reportDetailModal').classList.add('hidden');
+            renderReports();
+        }
+
+        async function renderReportDetailModal() {
+            const record = currentEditingReport;
+            const teachers = await DB.getTeachers();
+            const classes = await DB.getClasses();
+            const students = await DB.getCollection(DB.KEYS.STUDENTS);
+            
+            const teacher = teachers.find(t => t.id === record.teacherId) || { name: 'غير معروف' };
+            const cls = classes.find(c => c.id === record.classId) || { name: 'صف محذوف', section: '' };
+            
+            let modal = document.getElementById('reportDetailModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'reportDetailModal';
+                modal.className = 'fixed inset-0 liquid-glass-overlay z-[100] hidden flex items-center justify-center p-4';
+                document.body.appendChild(modal);
+            }
+
+            modal.innerHTML = `
+                <div class="liquid-glass-modal w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-4 sm:p-8 space-y-6 sm:space-y-8 liquid-glass-scrollbar text-right">
+                    <div class="flex justify-between items-start">
+                        <button onclick="document.getElementById('reportDetailModal').classList.add('hidden')" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl liquid-glass-icon icon-error interactive flex items-center justify-center text-lg sm:text-xl font-black">×</button>
+                        <div class="text-right">
+                            <h2 class="text-xl sm:text-3xl font-black refractive-text">${cls.name} - ${cls.section}</h2>
+                            <p class="text-primary text-[10px] sm:text-sm font-bold uppercase tracking-wider">${record.date} | بواسطة ${teacher.name}</p>
+                        </div>
+                    </div>
+                    
+                    <img src="${record.image || 'https://via.placeholder.com/800x400?text=No+Image'}" class="w-full rounded-2xl border border-white/10 shadow-2xl h-40 sm:h-56 object-cover mb-4">
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div class="liquid-glass-subtle p-4 sm:p-5 rounded-2xl border border-white/5">
+                            <p class="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1 sm:mb-2">الملاحظات</p>
+                            <p class="text-xs sm:text-sm italic text-gray-200">${record.notes || 'لا يوجد ملاحظات'}</p>
+                        </div>
+                        <div class="liquid-glass-subtle p-4 sm:p-5 rounded-2xl border border-white/5">
+                            <p class="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1 sm:mb-2">الإحصائيات</p>
+                            <p class="text-base sm:text-lg font-black text-primary">${record.details.filter(d => d.status === 'present').length} حاضر / ${record.details.length} طالباً</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-base sm:text-lg font-black refractive-text border-r-4 border-primary px-3">قائمة الطلاب</h3>
+                            <p class="text-[9px] sm:text-[10px] text-gray-500 font-bold">انقر لتعديل الحالة</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            ${record.details.map(d => {
+                                const s = students.find(st => st.id === d.studentId);
+                                const isPresent = d.status === 'present';
+                                return `
+                                    <div onclick="toggleStudentStatus('${d.studentId}')" class="liquid-glass interactive flex justify-between items-center p-3 sm:p-4 rounded-2xl border border-white/5 hover:border-primary/50 transition-all">
+                                        <div class="flex items-center gap-2 sm:gap-3">
+                                            <div class="w-3 h-3 sm:w-4 sm:h-4 rounded-full ${isPresent ? 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.6)]' : 'bg-error shadow-[0_0_12px_rgba(239,68,68,0.6)]'} transition-all duration-500"></div>
+                                            <span class="${isPresent ? 'text-green-400' : 'text-error'} font-black uppercase tracking-widest text-[9px] sm:text-[10px]">${isPresent ? 'حاضر' : 'غائب'}</span>
+                                        </div>
+                                        <span class="text-gray-200 font-black text-sm">${s ? s.name : 'غير موجود'}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pt-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
+                        <button onclick="saveReportChanges()" class="flex-1 liquid-button liquid-button-prominent text-background font-black py-4 sm:py-5 rounded-2xl shadow-xl shadow-primary/20 scale-100 hover:scale-[1.03]">حفظ التعديلات</button>
+                        <button onclick="document.getElementById('reportDetailModal').classList.add('hidden')" class="flex-1 liquid-glass interactive text-white font-black py-4 sm:py-5 rounded-2xl border border-white/10">إلغاء</button>
+                    </div>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        async function renderTeachers() {
+            const container = document.getElementById('teacherTable');
+            const teachers = await DB.getTeachers();
+            
+            if (teachers.length === 0) {
+                container.innerHTML = '<div class="p-10 text-center text-gray-500 italic">لا يوجد معلمون مسجلون بعد</div>';
+                return;
+            }
+
+            container.innerHTML = teachers.map(t => {
+                const initial = t.name ? t.name.charAt(0).toUpperCase() : '?';
+                const colors = ['from-[#7aafff] to-indigo-600', 'from-purple-500 to-pink-600', 'from-[#ff716c] to-orange-500', 'from-teal-400 to-emerald-600'];
+                const colorIndex = Math.abs(t.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % colors.length;
+                const gradient = colors[colorIndex];
+
+                return `
+                <div class="teacher-row grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 sm:p-5 hover:bg-white/[0.03] transition-all group items-center border-b border-white/[0.02]">
+                    <!-- Profile Column -->
+                    <div class="flex items-center gap-4 sm:col-span-3">
+                        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-black text-xl shadow-lg shadow-black/20 group-hover:scale-110 transition-transform">
+                            ${initial}
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-black text-white text-base sm:text-lg refractive-text leading-tight">${t.name}</span>
+                            <span class="sm:hidden text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">الاسم الكامل</span>
+                        </div>
+                    </div>
+
+                    <!-- Ministry ID Column -->
+                    <div class="flex flex-col sm:justify-center sm:col-span-2">
+                        <div class="flex items-center gap-2 text-gray-300">
+                            <span class="material-symbols-outlined text-sm text-primary/60">badge</span>
+                            <span class="font-mono text-xs sm:text-sm tracking-tighter">${t.ministryId}</span>
+                        </div>
+                        <span class="sm:hidden text-[9px] text-gray-500 font-bold uppercase mt-1">الرقم الوزاري</span>
+                    </div>
+
+                    <!-- Role Column -->
+                    <div class="flex flex-col sm:justify-center sm:col-span-3 items-start sm:items-center">
+                        <div class="flex items-center">
+                             <span class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${t.role === 'admin' ? 'bg-error/10 text-error border border-error/20' : 'bg-primary/10 text-primary border border-primary/20'}">
+                                <span class="material-symbols-outlined text-xs">${t.role === 'admin' ? 'security' : 'person_book'}</span>
+                                ${t.role === 'admin' ? 'مدير النظام' : 'معلم'}
+                            </span>
+                        </div>
+                        <span class="sm:hidden text-[9px] text-gray-500 font-bold uppercase mt-1.5">الرتبة الوظيفية</span>
+                    </div>
+
+                    <!-- Actions Column -->
+                    <div class="pt-5 sm:pt-0 border-t border-white/[0.05] sm:border-0 sm:col-span-4">
+                        <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 justify-start sm:justify-end">
+                            <button onclick="showEditTeacherModal('${t.id}')" class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-primary bg-primary/10 border border-primary/20 hover:bg-primary hover:text-background transition-all" title="تعديل">
+                                <span class="material-symbols-outlined text-lg sm:text-xl">edit</span>
+                            </button>
+                            
+                            <button onclick="toggleTeacherRole('${t.id}')" class="h-10 sm:h-11 px-4 rounded-2xl flex items-center gap-2 text-[10px] font-black tracking-widest transition-all bg-white/5 border border-white/10 hover:bg-white/10 ${t.role === 'admin' ? 'text-gray-400' : 'text-primary'}">
+                                <span class="material-symbols-outlined text-base">${t.role === 'admin' ? 'keyboard_double_arrow_down' : 'keyboard_double_arrow_up'}</span>
+                                <span class="hidden md:inline">${t.role === 'admin' ? 'تخفيض' : 'ترقية'}</span>
+                            </button>
+
+                            <button onclick="toggleTeacherBlock('${t.id}')" class="h-10 sm:h-11 px-4 rounded-2xl flex items-center gap-2 text-[10px] font-black tracking-widest transition-all border ${t.blocked ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500/20'}">
+                                <span class="material-symbols-outlined text-base">${t.blocked ? 'lock_open_right' : 'lock_person'}</span>
+                                <span class="hidden md:inline">${t.blocked ? 'فك الحظر' : 'حظر'}</span>
+                            </button>
+
+                            <button onclick="deleteTeacher('${t.id}', this)" class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-error bg-error/10 border border-error/20 hover:bg-error hover:text-white transition-all" title="حذف">
+                                <span class="material-symbols-outlined text-lg sm:text-xl">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        async function renderClasses() {
+            const grid = document.getElementById('classGrid');
+            UI.showSkeleton(grid, 'card', 2);
+            const classes = await DB.getClasses();
+            
+            grid.innerHTML = (await Promise.all(classes.map(async c => {
+                const students = await DB.getStudents(c.id);
+                return `
+                <div class="liquid-glass liquid-glass-prominent p-8 rounded-[2.5rem] group relative hover:scale-[1.01] transition-transform duration-500">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h4 class="text-2xl font-black refractive-text">${c.name}</h4>
+                            <p class="text-primary text-xs font-bold uppercase tracking-widest mt-1">شعبة: <span class="text-white">${c.section}</span> • <span class="text-white">${students.length}</span> طلاب</p>
+                        </div>
+                        <div class="flex gap-3 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-500">
+                            <button onclick="showEditClassModal('${c.id}')" class="liquid-glass-icon interactive w-10 h-10 rounded-2xl text-primary">
+                                <span class="material-symbols-outlined text-[18px]">edit</span>
+                            </button>
+                            <button onclick="deleteClass('${c.id}', this)" class="liquid-glass-icon interactive icon-error w-10 h-10 rounded-2xl text-error">
+                                <span class="material-symbols-outlined text-[18px]">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mt-4 max-h-56 overflow-y-auto pl-4 liquid-glass-scrollbar">
+                        ${students.length === 0 ? '<div class="liquid-glass-subtle p-8 rounded-[2rem] text-center text-gray-500 font-bold text-xs uppercase tracking-widest">لا يوجد طلاب في هذا الفصل</div>' : ''}
+                        ${students.map(s => `
+                            <div class="flex justify-between items-center py-3 border-b border-white/5 group/stud">
+                                <div class="flex items-center gap-4">
+                                    <div class="relative">
+                                        <img src="${s.avatar || 'https://via.placeholder.com/150'}" alt="Student" class="w-10 h-10 rounded-2xl object-cover border border-white/10 shadow-lg group-hover/stud:border-primary/50 transition-all duration-500">
+                                        <div class="absolute inset-0 rounded-2xl shadow-inner pointer-events-none"></div>
+                                    </div>
+                                    <span class="text-gray-200 font-black text-sm">${s.name}</span>
+                                </div>
+                                <div class="flex items-center gap-2 opacity-0 group-hover/stud:opacity-100 translate-x-1 group-hover/stud:translate-x-0 transition-all duration-300">
+                                    <button onclick="showEditStudentModal('${s.id}')" class="w-8 h-8 rounded-xl liquid-glass interactive flex items-center justify-center text-primary group-hover/stud:border-primary/30">
+                                        <span class="material-symbols-outlined text-[14px]">edit</span>
+                                    </button>
+                                    <button onclick="deleteStudent('${s.id}', this)" class="w-8 h-8 rounded-xl liquid-glass interactive flex items-center justify-center text-error group-hover/stud:border-error/30">
+                                        <span class="material-symbols-outlined text-[14px]">person_remove</span>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <button onclick="showAddStudentModal('${c.id}')" class="w-full mt-6 liquid-glass liquid-button font-black text-[10px] uppercase tracking-widest text-primary border border-primary/20 rounded-2xl py-4 shadow-lg shadow-primary/5">
+                        <span class="flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm">person_add</span>
+                            إضافة طالب جديد
+                        </span>
+                    </button>
+                </div>
+            `}))).join('') + `
+                <button onclick="showAddClassModal()" class="border-2 border-dashed border-white/10 rounded-[2.5rem] flex flex-col items-center justify-center p-12 text-gray-500 hover:border-primary/50 hover:text-primary transition-all group liquid-glass-subtle liquid-glass-interactive">
+                    <div class="w-16 h-16 rounded-[2rem] liquid-glass flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-90 transition-all duration-700 bg-white/5 shadow-xl shadow-black/20">
+                        <span class="material-symbols-outlined text-4xl">add</span>
+                    </div>
+                    <span class="font-black text-xs uppercase tracking-widest">إضافة فصل دراسي جديد</span>
+                </button>
+            `;
+        }
+
+        // Modal Controls
+        function showAddTeacherModal() {
+            document.getElementById('teacherModalTitle').innerText = 'إضافة معلم جديد';
+            document.getElementById('tEditId').value = '';
+            document.getElementById('teacherModal').querySelector('form').reset();
+            openModal('teacherModal');
+        }
+
+        async function showEditTeacherModal(id) {
+            const teachers = await DB.getTeachers();
+            const t = teachers.find(x => x.id === id);
+            if (!t) return;
+
+            document.getElementById('teacherModalTitle').innerText = 'تعديل بيانات المعلم';
+            document.getElementById('tEditId').value = id;
+            document.getElementById('tName').value = t.name;
+            document.getElementById('tMinistryId').value = t.ministryId;
+            document.getElementById('tPassword').value = t.password || '';
+            document.getElementById('tRole').value = t.role || 'teacher';
+            
+            openModal('teacherModal');
+        }
+
+        function showAddClassModal() {
+            document.getElementById('classModalTitle').innerText = 'إضافة فصل جديد';
+            document.getElementById('cEditId').value = '';
+            document.getElementById('classModal').querySelector('form').reset();
+            openModal('classModal');
+        }
+
+        async function showEditClassModal(id) {
+            const classes = await DB.getClasses();
+            const c = classes.find(x => x.id === id);
+            if (!c) return;
+
+            document.getElementById('classModalTitle').innerText = 'تعديل بيانات الفصل';
+            document.getElementById('cEditId').value = id;
+            document.getElementById('cName').value = c.name;
+            document.getElementById('cSection').value = c.section;
+            
+            openModal('classModal');
+        }
+
+        function showAddStudentModal(classId) {
+            document.getElementById('studentModalTitle').innerText = 'إضافة طالب جديد';
+            document.getElementById('sEditId').value = '';
+            document.getElementById('sClassId').value = classId;
+            document.getElementById('studentModal').querySelector('form').reset();
+            openModal('studentModal');
+        }
+
+        async function showEditStudentModal(id) {
+            const students = await DB.getCollection(DB.KEYS.STUDENTS);
+            const s = students.find(x => x.id === id || x.academicId === id);
+            if (!s) return;
+
+            document.getElementById('studentModalTitle').innerText = 'تعديل بيانات الطالب';
+            document.getElementById('sEditId').value = s.id;
+            document.getElementById('sClassId').value = s.classId;
+            document.getElementById('sName').value = s.name;
+            document.getElementById('sId').value = s.academicId;
+            
+            openModal('studentModal');
+        }
+
+        function openModal(id) {
+            document.getElementById('modalOverlay').classList.remove('hidden');
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+            ['teacherModal', 'classModal', 'studentModal'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+        }
+
+        // Form Handlers
+        async function handleAddTeacher(e) {
+            e.preventDefault();
+            const editId = document.getElementById('tEditId').value;
+            const teacherData = {
+                name: document.getElementById('tName').value,
+                ministryId: document.getElementById('tMinistryId').value,
+                password: document.getElementById('tPassword').value,
+                role: document.getElementById('tRole').value
+            };
+
+            if (editId) {
+                await DB.updateTeacher(editId, teacherData);
+                UI.toast('تم تحديث بيانات المعلم بنجاح');
+                renderTeachers(); // Only re-render the teacher table
+            } else {
+                await DB.addTeacher(teacherData);
+                UI.toast('تم إضافة المعلم بنجاح');
+                renderTeachers();
+            }
+            
+            updateStat('statTeachers', editId ? 0 : 1);
+            closeModal();
+            e.target.reset();
+        }
+
+        async function handleAddClass(e) {
+            e.preventDefault();
+            const editId = document.getElementById('cEditId').value;
+            const classData = {
+                name: document.getElementById('cName').value,
+                section: document.getElementById('cSection').value
+            };
+
+            if (editId) {
+                await DB.updateClass(editId, classData);
+                UI.toast('تم تحديث بيانات الفصل بنجاح');
+            } else {
+                await DB.addClass(classData);
+                UI.toast('تم إضافة الفصل بنجاح');
+            }
+
+            updateStat('statClasses', editId ? 0 : 1);
+            closeModal();
+            renderClasses(); // Re-render classes grid
+            e.target.reset();
+        }
+
+        async function handleAddStudent(e) {
+            e.preventDefault();
+            const form = e.target;
+            const editId = document.getElementById('sEditId').value;
+            const fileInput = document.getElementById('sImage');
+            
+            const doSave = async (avatarData) => {
+                const studentData = {
+                    name: document.getElementById('sName').value,
+                    academicId: document.getElementById('sId').value,
+                    classId: document.getElementById('sClassId').value
+                };
+                if (avatarData) studentData.avatar = avatarData;
+
+                if (editId) {
+                    await DB.updateStudent(editId, studentData);
+                    UI.toast('تم تحديث بيانات الطالب');
+                } else {
+                    await DB.addStudent(studentData);
+                    UI.toast('تم إضافة الطالب بنجاح');
+                }
+                
+                updateStat('statStudents', editId ? 0 : 1);
+                closeModal();
+                renderClasses(); // Refresh class grid to show new/updated student
+                form.reset();
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async (event) => await doSave(event.target.result);
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                if (editId) {
+                    await doSave(null);
+                } else {
+                    await doSave('https://via.placeholder.com/150');
+                }
+            }
+        }
+
+        // Action Handlers
+        async function deleteTeacher(id, el) {
+            if (await UI.confirm('حذف المعلم', 'هل أنت متأكد من حذف هذا المعلم؟')) {
+                const row = el.closest('.teacher-row'); // Accurate row selector
+                await UI.optimistic(row, DB.deleteTeacher(id), 'فشل حذف المعلم');
+                updateStat('statTeachers', -1);
+            }
+        }
+
+        async function deleteClass(id, el) {
+            if (await UI.confirm('حذف الفصل', 'هل أنت متأكد من حذف هذا الفصل بجميع طلابه؟')) {
+                const card = el.closest('.liquid-glass');
+                const action = async () => {
+                    const students = await DB.getStudents(id);
+                    for (let s of students) {
+                        await DB.deleteStudent(s.id);
+                    }
+                    await DB.deleteClass(id);
+                };
+                await UI.optimistic(card, action(), 'فشل حذف الفصل');
+                updateStat('statClasses', -1);
+            }
+        }
+
+        async function deleteStudent(id, el) {
+            if (await UI.confirm('حذف الطالب', 'هل أنت متأكد من حذف هذا الطالب؟')) {
+                // Fix potential selector issue and ensure parent card is updated
+                const studentRow = el.closest('.group\\/stud');
+                if (!studentRow) {
+                    console.error('Could not find student row to delete');
+                    return;
+                }
+                await UI.optimistic(studentRow, DB.deleteStudent(id), 'فشل حذف الطالب');
+                updateStat('statStudents', -1);
+            }
+        }
+
+        function updateStat(id, delta) {
+            const el = document.getElementById(id);
+            if (el) {
+                const current = parseInt(el.innerText) || 0;
+                el.innerText = Math.max(0, current + delta);
+            }
+        }
+
+        async function toggleTeacherRole(id) {
+            const teachers = await DB.getTeachers();
+            const t = teachers.find(x => x.id === id);
+            if (t) {
+                const newRole = t.role === 'admin' ? 'teacher' : 'admin';
+                await DB.updateTeacher(id, { role: newRole });
+                renderTeachers();
+            }
+        }
+
+        async function toggleTeacherBlock(id) {
+            const teachers = await DB.getTeachers();
+            const t = teachers.find(x => x.id === id);
+            if (t) {
+                await DB.updateTeacher(id, { blocked: !t.blocked });
+                renderTeachers();
+            }
+        }
+
+        // Close on overlay click
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        init();
+    </script>
+</body>
+</html>
