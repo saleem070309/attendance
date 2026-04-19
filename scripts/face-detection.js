@@ -10,11 +10,11 @@ const FaceDetection = {
     ctx: null,
     isActive: false,
     
-    // Stability tracking
+    // Stability tracking (Time-based for consistency across hardware)
     lastBox: null,
-    stableFrames: 0,
+    stableStartTime: null,
     STABILITY_THRESHOLD: 0.03, // 3% variance allowed
-    REQUIRED_STABLE_FRAMES: 15, // 0.5 seconds at 30fps
+    REQUIRED_STABILITY_MS: 500, // Exactly 0.5 seconds
     
     onCapture: null, // Callback when face is locked
 
@@ -106,8 +106,10 @@ const FaceDetection = {
             const centerY = originY + height / 2;
             const radius = Math.max(width, height) * 0.7; // Refined Face ID style radius
 
-            const isStableEnough = this.stableFrames > (this.REQUIRED_STABLE_FRAMES / 3);
-            const progress = this.stableFrames / this.REQUIRED_STABLE_FRAMES;
+            const now = performance.now();
+            const elapsed = this.stableStartTime ? (now - this.stableStartTime) : 0;
+            const progress = Math.min(elapsed / this.REQUIRED_STABILITY_MS, 1);
+            const isStableEnough = progress > 0.3;
 
             // Premium Face ID Design
             this.ctx.save();
@@ -128,15 +130,11 @@ const FaceDetection = {
                 this.ctx.arc(centerX, centerY, radius, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * progress));
                 
                 // Dynamic Color based on stability
-                const gradient = this.ctx.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
-                gradient.addColorStop(0, '#7aafff');
-                gradient.addColorStop(1, '#a0c4ff');
-                
-                this.ctx.strokeStyle = gradient;
+                // Solid Sharp Line for Face ID ring
+                this.ctx.strokeStyle = '#7aafff';
                 this.ctx.lineWidth = 6;
                 this.ctx.lineCap = 'round';
-                this.ctx.shadowBlur = 15;
-                this.ctx.shadowColor = 'rgba(122, 175, 255, 0.5)';
+                this.ctx.shadowBlur = 0;
                 this.ctx.stroke();
             }
 
@@ -178,7 +176,7 @@ const FaceDetection = {
 
     checkStability(detections) {
         if (detections.length === 0) {
-            this.stableFrames = 0;
+            this.stableStartTime = null;
             this.lastBox = null;
             return;
         }
@@ -196,18 +194,20 @@ const FaceDetection = {
             const dw = Math.abs(currentBox.width - this.lastBox.width) / this.canvas.width;
             
             if (dx < this.STABILITY_THRESHOLD && dy < this.STABILITY_THRESHOLD && dw < this.STABILITY_THRESHOLD) {
-                this.stableFrames++;
+                if (!this.stableStartTime) {
+                    this.stableStartTime = performance.now();
+                }
             } else {
-                this.stableFrames = 0;
+                this.stableStartTime = null;
             }
         }
 
         this.lastBox = currentBox;
 
-        if (this.stableFrames >= this.REQUIRED_STABLE_FRAMES) {
+        if (this.stableStartTime && (performance.now() - this.stableStartTime) >= this.REQUIRED_STABILITY_MS) {
             this.isActive = false; // Pause loop
+            this.stableStartTime = null; // Reset for next time
             if (this.onCapture) this.onCapture();
-            this.stableFrames = 0;
         }
     }
 };

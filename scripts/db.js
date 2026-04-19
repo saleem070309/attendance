@@ -151,13 +151,20 @@ const DB = {
     },
     async addClass(cls) {
         const id = 'c' + Date.now();
-        await this.dbInstance.collection(this.KEYS.CLASSES).doc(id).set(cls);
+        // Defensive data normalization
+        const normalized = {
+            name: cls.name || cls.className || cls.title || 'صف جديد',
+            section: cls.section || cls.group || '-'
+        };
+        await this.dbInstance.collection(this.KEYS.CLASSES).doc(id).set(normalized);
     },
     async deleteClass(id) {
         await this.dbInstance.collection(this.KEYS.CLASSES).doc(id).delete();
     },
     async addStudent(student) {
-        const id = student.academicId;
+        const id = student.academicId || Date.now().toString();
+        student.academicId = id;
+        student.name = student.name || 'طالب مجهول';
         await this.dbInstance.collection(this.KEYS.STUDENTS).doc(id).set(student);
     },
     async deleteStudent(id) {
@@ -195,5 +202,34 @@ const DB = {
         await this.dbInstance.collection(this.KEYS.RECORDS).doc(id).update({
             details: newDetails
         });
+    },
+
+    // Generic Methods for AI Agent
+    async insert(table, data) {
+        if (table === 'students') return await this.addStudent(data);
+        if (table === 'teachers') return await this.addTeacher(data);
+        if (table === 'classes') return await this.addClass(data);
+        
+        const col = this.KEYS[table.toUpperCase()] || table;
+        return await this.dbInstance.collection(col).add(data);
+    },
+
+    async update(table, id, data) {
+        if (table === 'students') return await this.updateStudent(id, data);
+        if (table === 'teachers') return await this.updateTeacher(id, data);
+        if (table === 'classes') return await this.updateClass(id, data);
+        
+        const col = this.KEYS[table.toUpperCase()] || table;
+        return await this.dbInstance.collection(col).doc(id).update(data);
+    },
+
+    async delete(table, id) {
+        if (table === 'students') return await this.deleteStudent(id);
+        if (table === 'teachers') return await this.deleteTeacher(id);
+        if (table === 'classes') return await this.deleteClass(id);
+        if (table === 'records') return await this.deleteRecord(id);
+        
+        const col = this.KEYS[table.toUpperCase()] || table;
+        return await this.dbInstance.collection(col).doc(id).delete();
     }
 };

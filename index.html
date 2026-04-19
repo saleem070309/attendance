@@ -1,27 +1,28 @@
 <!DOCTYPE html>
-<html class="dark" dir="rtl" lang="ar">
+<html dir="rtl" lang="ar">
 
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#020a2f">
+    <meta name="theme-color" content="#faf7f2">
     <title>دخول | نظام الحضور الذكي</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
     <link href="styles/liquid-glass.css" rel="stylesheet" />
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script>
         tailwind.config = {
-            darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#7aafff",
-                        "on-primary": "#002e5d",
-                        "background": "#020a2f",
-                        "surface": "#081542"
+                        "primary": "#ffa726",
+                        "on-primary": "#2c2c2c",
+                        "background": "#faf7f2",
+                        "surface": "#ffffff"
                     },
                     fontFamily: {
                         sans: ['Tajawal', 'sans-serif'],
@@ -32,7 +33,7 @@
     </script>
     <style>
         body {
-            background-color: #020a2f;
+            background-color: #faf7f2;
             overflow-x: hidden;
         }
 
@@ -50,14 +51,14 @@
 
         .indicator-teacher {
             transform: translateX(0);
-            background: linear-gradient(135deg, #7aafff, #5a9fff);
-            box-shadow: 0 4px 15px rgba(122, 175, 255, 0.4);
+            background: #ffa726;
+            box-shadow: none;
         }
 
         .indicator-student {
             transform: translateX(-100%);
-            background: linear-gradient(135deg, #a78bfa, #8b5cf6);
-            box-shadow: 0 4px 15px rgba(167, 139, 250, 0.4);
+            background: #ffcc80;
+            box-shadow: none;
         }
 
         .tab-button {
@@ -86,7 +87,7 @@
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col items-center justify-center py-6 sm:py-12 px-4 sm:px-6 text-white font-sans">
+<body class="min-h-screen flex flex-col items-center justify-center py-6 sm:py-12 px-4 sm:px-6 text-gray-800 font-sans">
     <!-- Ambient Background -->
     <div class="liquid-glass-ambient">
         <div class="orb orb-primary"></div>
@@ -97,11 +98,11 @@
     <div class="w-full max-w-full sm:max-w-md space-y-6 sm:space-y-8 relative z-10">
         <!-- Logo & Title -->
         <div class="text-center">
-            <div class="liquid-glass-icon icon-primary w-20 h-20 sm:w-24 sm:h-24 rounded-[1.5rem] sm:rounded-[1.75rem] mx-auto mb-4 sm:mb-6 shadow-lg shadow-primary/10">
-                <span class="material-symbols-outlined text-primary text-4xl sm:text-5xl" style="font-variation-settings: 'FILL' 1;">school</span>
+            <div class="liquid-glass-icon icon-primary w-20 h-20 sm:w-24 sm:h-24 rounded-xl mx-auto mb-4 sm:mb-6 border border-primary/20 flex items-center justify-center overflow-hidden">
+                <img src="logo.png" alt="Logo" class="w-full h-full object-contain p-2" />
             </div>
             <h1 class="text-2xl sm:text-3xl font-bold refractive-text">بوابة الحضور الذكي</h1>
-            <p class="text-gray-400 mt-2 sm:mt-3 text-xs sm:text-sm">مرحباً بك، يرجى اختيار نوع الدخول</p>
+            <p class="text-gray-500 mt-2 sm:mt-3 text-xs sm:text-sm">مرحباً بك، يرجى اختيار نوع الدخول</p>
         </div>
 
         <!-- Tab Bar -->
@@ -110,15 +111,15 @@
             <button id="teacherTab" onclick="switchTab('teacher')"
                 class="tab-button flex-1 py-3.5 rounded-xl font-bold relative z-10 text-on-primary">معلم / مدير</button>
             <button id="studentTab" onclick="switchTab('student')"
-                class="tab-button flex-1 py-3.5 rounded-xl font-medium relative z-10 text-gray-400">طالب / ولي أمر</button>
+                class="tab-button flex-1 py-3.5 rounded-xl font-medium relative z-10 text-gray-500">طالب / ولي أمر</button>
         </div>
 
         <!-- Forms Container -->
         <div class="liquid-glass-container space-y-4 sm:space-y-6">
             <!-- Teacher Login Form -->
-            <div id="teacherForm" class="liquid-glass liquid-glass-prominent rounded-[2rem] p-6 sm:p-8 shadow-2xl space-y-4 sm:space-y-6">
+            <div id="teacherForm" class="liquid-glass liquid-glass-prominent rounded-xl p-6 sm:p-8 space-y-4 sm:space-y-6">
                 <div class="space-y-1 sm:space-y-2">
-                    <label class="text-xs sm:text-sm font-medium text-gray-300 refractive-text">الرقم الوزاري</label>
+                    <label class="text-xs sm:text-sm font-medium text-gray-600 refractive-text">الرقم الوزاري</label>
                     <div class="relative">
                         <span
                             class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">badge</span>
@@ -128,7 +129,7 @@
                     </div>
                 </div>
                 <div class="space-y-1 sm:space-y-2">
-                    <label class="text-xs sm:text-sm font-medium text-gray-300 refractive-text">كلمة السر</label>
+                    <label class="text-xs sm:text-sm font-medium text-gray-600 refractive-text">كلمة السر</label>
                     <div class="relative">
                         <span
                             class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">lock</span>
@@ -138,14 +139,14 @@
                     </div>
                 </div>
                 <button onclick="handleLogin()"
-                    class="liquid-button liquid-button-prominent w-full py-3.5 sm:py-4 text-on-primary font-bold rounded-2xl text-xs sm:text-sm">دخول
+                    class="liquid-button liquid-button-prominent w-full py-3.5 sm:py-4 text-on-primary font-bold rounded-xl text-xs sm:text-sm">دخول
                     النظام</button>
             </div>
 
             <!-- Student Search Form -->
-            <div id="studentForm" class="liquid-glass liquid-glass-prominent rounded-[2rem] p-6 sm:p-8 shadow-2xl space-y-4 sm:space-y-6 hidden">
+            <div id="studentForm" class="liquid-glass liquid-glass-prominent rounded-xl p-6 sm:p-8 space-y-4 sm:space-y-6 hidden">
                 <div class="space-y-1 sm:space-y-2">
-                    <label class="text-xs sm:text-sm font-medium text-gray-300 refractive-text">رقم الطالب (ID)</label>
+                    <label class="text-xs sm:text-sm font-medium text-gray-600 refractive-text">رقم الطالب (ID)</label>
                     <div class="relative">
                         <span
                             class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">person_search</span>
@@ -155,7 +156,7 @@
                     </div>
                 </div>
                 <button onclick="handleStudentSearch()"
-                    class="liquid-button liquid-button-prominent w-full py-3.5 sm:py-4 text-on-primary font-bold rounded-2xl text-xs sm:text-sm">عرض
+                    class="liquid-button liquid-button-prominent w-full py-3.5 sm:py-4 text-on-primary font-bold rounded-xl text-xs sm:text-sm">عرض
                     حالة الحضور</button>
                 <p class="text-[11px] text-center text-gray-500">يمكنك متابعة تقرير الحضور والغياب اليومي وسجل الأيام
                     السابقة.</p>
@@ -185,10 +186,10 @@
                 const el = document.getElementById(t);
                 if (t === type + 'Tab') {
                     el.classList.add('text-on-primary', 'font-bold');
-                    el.classList.remove('text-gray-400', 'font-medium');
+                    el.classList.remove('text-gray-500', 'font-medium');
                 } else {
                     el.classList.remove('text-on-primary', 'font-bold');
-                    el.classList.add('text-gray-400', 'font-medium');
+                    el.classList.add('text-gray-500', 'font-medium');
                 }
             });
 
@@ -246,6 +247,15 @@
                 btn.disabled = false;
                 UI.toast('هذا الرقم غير مسجل في النظام', 'error');
             }
+        }
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Registration failed', err));
+            });
         }
     </script>
 </body>

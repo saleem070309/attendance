@@ -59,9 +59,9 @@ const Agent = {
 
             const lowAttendance = studentStats.filter(s => s.attendanceRate < 75 && s.totalRecords > 0);
             const perfectAttendance = studentStats.filter(s => s.attendanceRate === 100 && s.totalRecords > 0);
-            
+
             // آخر تقرير وصل
-            const lastReport = records.length > 0 ? records.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))[0] : null;
+            const lastReport = records.length > 0 ? records.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))[0] : null;
             let lastReportSummary = "لا يوجد تقارير مسجلة بعد.";
             if (lastReport) {
                 const lrPresent = lastReport.details?.filter(d => d.status === 'present').length || 0;
@@ -84,39 +84,43 @@ ${lastReportSummary}
 • طلاب متميزون (حضور 100%): ${perfectAttendance.length}
 
 ═══ قائمة الطلاب التفصيلية ═══
-${studentStats.map(s => `• ${s.name} (${s.academicId}) | النسبة: ${s.attendanceRate}% | حضور: ${s.presentCount}/${s.totalRecords}`).join('\n')}
+${studentStats.map(s => `• ${s.name || 'مسمى مفقود'} (${s.academicId || 'بدون رقم'}) | النسبة: ${s.attendanceRate}%`).join('\n')}
 
 ═══ الفصول الدراسية ═══
-${classes.map(c => `• ${c.name} (${c.section})`).join('\n')}
+${classes.map(c => `• ${c.name || 'مسمى غير محدد'} (${c.section || '-'})`).join('\n')}
 
 ═══ المعلمون والموظفون ═══
-${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
+${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'})`).join('\n')}
 
 ═══ القدرات الخاصة بك ═══
 - يمكنك تحليل البيانات وتقديم توصيات.
 - يمكنك إنشاء ملفات Excel (استخدم نوع export_excel).
 - يمكنك إنشاء تقارير Word (استخدم نوع export_word).
 - يمكنك عرض رسوم بيانية (استخدم نوع chart).
-- لديك صلاحية كاملة لرؤية كل ما تم ذكره أعلاه من قاعدة البيانات.
+- **جديد**: يمكنك الكتابة في قاعدة البيانات (إضافة/تعديل/حذف) باستخدام نوع database_action.
+- **جديد**: يمكنك معالجة الصور والملفات المرفوعة.
 
 ═══ تعليمات الأوامر ═══
-عند طلب تصدير بيانات، أضف في نهاية ردك سطراً واحداً يبدأ بـ |||COMMAND|||
+عند تنفيذ أي عملية، أضف في نهاية ردك سطراً واحداً يبدأ بـ |||COMMAND|||
 يليه مباشرة JSON صحيح على هذا الشكل:
 
-للإكسل (يجب أن تكون مصفوفة الكائنات تفصيلية):
-|||COMMAND|||{"type":"export_excel","data":[{"الاسم":"أحمد","النسبة":"90%"}],"fileName":"تقرير.xlsx","sheetName":"البيانات"}
+للإكسل:
+|||COMMAND|||{"type":"export_excel","data":[{"الاسم":"أحمد"}],"fileName":"تقرير.xlsx"}
 
-للورد (قسم المحتويات إلى أقسام):
-|||COMMAND|||{"type":"export_word","content":{"title":"عنوان التقرير","sections":[{"heading":"قسم 1","body":"محتوى القسم"}]},"fileName":"تقرير.docx"}
+للعمليات على قاعدة البيانات (insert, update, delete):
+|||COMMAND|||{"type":"database_action","action":"insert","table":"students","data":{"name":"اسم جديد","academicId":"123","classId":"ID_CLASS"}}
+|||COMMAND|||{"type":"database_action","action":"insert","table":"classes","data":{"name":"الصف العاشر","section":"ج"}}
+|||COMMAND|||{"type":"database_action","action":"insert","table":"teachers","data":{"name":"المعلم","ministryId":"100","password":"123","role":"teacher"}}
+|||COMMAND|||{"type":"database_action","action":"update","table":"students","id":"ID_HERE","data":{"name":"اسم معدل"}}
 
-للرسم البياني (bar أو line):
-|||COMMAND|||{"type":"chart","chartType":"bar","labels":["طالب 1","طالب 2"],"values":[80,90],"title":"رسم بياني للنسب"}
+للوورد (Word):
+|||COMMAND|||{"type":"export_word","content":{"title":"عنوان التقرير","sections":[{"heading":"مقدمة","text":"نص القسم هنا"}]},"fileName":"تقرير.docx"}
 
- للإحصائيات السريعة (استخدم snake_case للأيقونات مثل check_circle, cancel, groups, percent, school, calendar_today, person, psychology):
-|||COMMAND|||{"type":"stats","items":[{"label":"نص","value":"قيمة","icon":"اسم_الأيقونة"}]}
+للرسم البياني:
+|||COMMAND|||{"type":"chart","chartType":"bar","labels":["أ","ب"],"values":[80,90],"title":"العنوان"}
 
 قواعد صارمة:
-1. التزم بالبيانات الحقيقية الموجودة في السياق أعلاه.
+1. التزم بالبيانات الحقيقية.
 2. لا تذكر أنك لا تملك صلاحية، فقد تم تزويدك بالبيانات اللازمة.
 3. |||COMMAND||| يجب أن يكون في سطر مستقل في نهاية الرد.`;
         } catch (e) {
@@ -172,9 +176,10 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
                 </div>
             </div>
 
-            <div id="agent-messages" class="flex-1 overflow-y-auto p-4 space-y-3 liquid-glass-scrollbar">
-                <div class="flex gap-2">
-                    <div class="bg-primary/10 border border-primary/20 p-3 rounded-2xl rounded-tr-none text-xs leading-relaxed max-w-[88%] text-white/90">
+            <div id="agent-messages" class="flex-1 overflow-y-auto p-4 space-y-4 liquid-glass-scrollbar hide-scrollbar">
+                <div class="flex flex-col items-start animate-fade-in mx-1">
+                    <span class="text-[9px] font-black text-white/40 mb-1 px-1 uppercase tracking-tight">وكيل الذكاء الاصطناعي</span>
+                    <div class="bg-primary/10 border border-primary/20 p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed max-w-[92%] text-white/90 relative">
                         أهلاً! أنا مساعدك الذكي المتخصص في بيانات الحضور والغياب 📊<br><br>
                         يمكنني مساعدتك في:
                         <ul class="mt-1 space-y-0.5 text-white/70">
@@ -204,9 +209,10 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
 
             <div class="p-3 border-t border-white/10 bg-black/20 shrink-0 rounded-b-[2.5rem]">
                 <div class="relative flex items-center gap-2">
-                    <input id="agent-input" type="text" placeholder="اكتب سؤالك هنا..." 
-                        class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-xs focus:outline-none focus:border-primary/50 text-white placeholder:text-white/20">
-                    <button id="agent-send-btn" onclick="Agent.sendMessage()" class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-lg active:scale-90 transition-transform shrink-0">
+                    <textarea id="agent-input" placeholder="اكتب سؤالك هنا..." 
+                        class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs focus:outline-none focus:border-primary/50 text-white placeholder:text-white/20 resize-none overflow-y-auto max-h-32 hide-scrollbar"
+                        rows="1"></textarea>
+                    <button id="agent-send-btn" onclick="Agent.sendMessage()" class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-lg active:scale-90 transition-transform shrink-0">
                         <span class="material-symbols-outlined text-sm">send</span>
                     </button>
                 </div>
@@ -215,17 +221,38 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
         document.body.appendChild(container);
 
         // Event listeners
-        document.getElementById('agent-input')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !this.isStreaming) this.sendMessage();
-        });
+        const input = document.getElementById('agent-input');
+        const suggestions = document.getElementById('agent-suggestions');
+
+        if (input) {
+            input.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+                
+                if (suggestions) {
+                    if (this.value.trim().length > 0) {
+                        suggestions.style.display = 'none';
+                    } else {
+                        suggestions.style.display = 'flex';
+                    }
+                }
+            });
+
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!this.isStreaming) this.sendMessage();
+                }
+            });
+        }
 
         document.getElementById('agent-clear-btn')?.addEventListener('click', () => this.clearChat());
 
         document.querySelectorAll('.suggestion-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const input = document.getElementById('agent-input');
                 if (input) {
                     input.value = btn.textContent.trim();
+                    input.style.height = 'auto';
                     this.sendMessage();
                 }
             });
@@ -238,12 +265,17 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
     clearChat() {
         const messages = document.getElementById('agent-messages');
         messages.innerHTML = `
-            <div class="flex gap-2">
-                <div class="bg-primary/10 border border-primary/20 p-3 rounded-2xl rounded-tr-none text-xs leading-relaxed max-w-[88%] text-white/90 animate-fade-in">
+            <div class="flex flex-col items-start animate-fade-in mx-1">
+                <span class="text-[9px] font-black text-white/40 mb-1 px-1 uppercase tracking-tight">وكيل الذكاء الاصطناعي</span>
+                <div class="bg-primary/10 border border-primary/20 p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed max-w-[92%] text-white/90">
                     تم مسح المحادثة. كيف يمكنني مساعدتك؟
                 </div>
             </div>`;
         this.chatHistory = [];
+        
+        const suggestions = document.getElementById('agent-suggestions');
+        if (suggestions) suggestions.style.display = 'flex';
+
         this.getSystemContext().then(ctx => {
             this.chatHistory = [{ role: 'system', content: ctx }];
         });
@@ -331,7 +363,12 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
         const messages = document.getElementById('agent-messages');
         const isUser = role === 'user';
         const div = document.createElement('div');
-        div.className = `flex ${isUser ? 'justify-end' : 'justify-start'} mb-3 mx-2`;
+        // In RTL: items-start = Right (AI), items-end = Left (User)
+        div.className = `flex flex-col ${isUser ? 'items-end' : 'items-start'} mb-4 mx-2 animate-fade-in`;
+
+        // Get current user info for label
+        const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+        const labelText = isUser ? (currentUser ? currentUser.name : 'مدير النظام') : 'وكيل الذكاء الاصطناعي';
 
         // Strip commands from display text
         const displayText = text.split('|||COMMAND|||')[0].trim();
@@ -339,16 +376,13 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\n/g, '<br>');
 
-        const bgClass = isUser ? 'bg-primary/20 border-primary/20' : 'bg-white/5 border-white/10';
-        const avatar = isUser ? '' : `
-            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mr-2 mt-1">
-                <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings:'FILL' 1">smart_toy</span>
-            </div>
-        `;
+        const bubbleClass = isUser ? 
+            'bg-gradient-to-tr from-[#ffa726] to-[#fb8c00] text-white shadow-md' : 
+            'bg-white/10 border border-white/10 text-white/90 shadow-sm';
 
         div.innerHTML = `
-            ${avatar}
-            <div class="${bgClass} border p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] text-white/90 animate-fade-in relative">
+            <span class="text-[9px] font-black ${isUser ? 'text-white/40' : 'text-primary/60'} mb-1 px-1 uppercase tracking-tight">${labelText}</span>
+            <div class="${bubbleClass} p-3.5 rounded-2xl ${isUser ? 'rounded-tl-sm' : 'rounded-tr-sm'} text-xs font-semibold leading-relaxed max-w-[92%] relative">
                 ${formatted || '&nbsp;'}
             </div>`;
 
@@ -466,6 +500,7 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
             });
 
         } else if (cmd.type === 'export_word') {
+            const wordContent = cmd.content || cmd.data || { title: 'تقرير مساعد الذكاء الاصطناعي', sections: [{ heading: 'محتوى التقرير', text: 'لا يوجد محتوى محدد' }] };
             this._renderFileCard(messages, {
                 icon: 'description',
                 iconColor: 'text-blue-400',
@@ -474,8 +509,11 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
                 badge: 'Word',
                 badgeColor: 'bg-blue-500/20 text-blue-300',
                 fileName: cmd.fileName || 'تقرير.docx',
-                onClick: () => FileUtils.exportToWord(cmd.content, cmd.fileName)
+                onClick: () => FileUtils.exportToWord(wordContent, cmd.fileName)
             });
+
+        } else if (cmd.type === 'database_action') {
+            this._handleDatabaseAction(messages, cmd);
 
         } else if (cmd.type === 'chart') {
             this._renderChart(messages, cmd);
@@ -488,24 +526,61 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
         }
     },
 
+    async _handleDatabaseAction(messages, cmd) {
+        const div = document.createElement('div');
+        div.className = 'animate-fade-in mb-3 mx-2';
+        div.innerHTML = `
+            <div class="bg-gray-800 text-white p-3 rounded-2xl text-[10px] font-bold flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm text-primary">database</span>
+                    <span>تنفيذ عملية: ${cmd.action} على ${cmd.table}</span>
+                </div>
+                <div id="db-status-${Date.now()}" class="text-primary">جاري...</div>
+            </div>`;
+        messages.appendChild(div);
+        
+        try {
+            let result;
+            if (cmd.action === 'insert') {
+                result = await DB.insert(cmd.table, cmd.data);
+            } else if (cmd.action === 'update') {
+                result = await DB.update(cmd.table, cmd.id, cmd.data);
+            } else if (cmd.action === 'delete') {
+                result = await DB.delete(cmd.table, cmd.id);
+            }
+            
+            const status = div.querySelector('div:last-child');
+            status.textContent = 'تم بنجاح ✓';
+            status.className = 'text-green-400';
+            
+            // Refresh UI if necessary (e.g., if we are not on AI tab, but let's assume global refresh for now)
+            if (typeof window.renderAll === 'function') window.renderAll();
+        } catch (e) {
+            const status = div.querySelector('div:last-child');
+            status.textContent = 'فشل ✗';
+            status.className = 'text-red-400';
+            console.error('DB Action error:', e);
+        }
+    },
+
     _renderFileCard(messages, opts) {
         const div = document.createElement('div');
         div.className = 'animate-fade-in mb-3';
         div.innerHTML = `
-            <div class="liquid-glass-modal ${opts.bgColor} border ${opts.borderColor} p-4 rounded-3xl mx-2 flex items-center justify-between gap-3">
+            <div class="bg-white border border-black/5 p-4 rounded-3xl mx-2 flex items-center justify-between gap-3 shadow-sm">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl ${opts.bgColor} ${opts.borderColor} border flex items-center justify-center shrink-0">
-                        <span class="material-symbols-outlined ${opts.iconColor} text-xl" style="font-variation-settings:'FILL' 1">${opts.icon}</span>
+                    <div class="w-10 h-10 rounded-2xl bg-gray-50 border border-black/5 flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined ${opts.iconColor.replace('text-green-400', 'text-green-600').replace('text-blue-400', 'text-blue-600')} text-xl" style="font-variation-settings:'FILL' 1">${opts.icon}</span>
                     </div>
                     <div>
                         <div class="flex items-center gap-2 mb-0.5">
-                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md ${opts.badgeColor}">${opts.badge}</span>
-                            <span class="text-[10px] text-white/40">جاهز للتنزيل</span>
+                            <span class="text-[9px] font-black px-1.5 py-0.5 rounded-md ${opts.badgeColor.replace('text-green-300', 'text-green-700').replace('text-blue-300', 'text-blue-700')}">${opts.badge}</span>
+                            <span class="text-[10px] text-gray-400 font-bold">جاهز للتنزيل</span>
                         </div>
-                        <div class="text-xs font-bold text-white/90">${opts.fileName}</div>
+                        <div class="text-[11px] font-black text-gray-800">${opts.fileName}</div>
                     </div>
                 </div>
-                <button id="dl-btn-${Date.now()}" class="w-10 h-10 rounded-2xl bg-primary text-background flex items-center justify-center shadow-lg active:scale-95 transition-all hover:opacity-80 shrink-0">
+                <button id="dl-btn-${Date.now()}" class="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center shadow-lg active:scale-95 transition-all hover:opacity-80 shrink-0">
                     <span class="material-symbols-outlined text-sm">download</span>
                 </button>
             </div>`;
@@ -537,7 +612,7 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
         div.className = 'animate-fade-in mb-3 mx-2';
         div.innerHTML = `
             <div class="liquid-glass-modal border border-white/10 p-4 rounded-3xl">
-                <div class="text-xs font-bold text-white/80 mb-3">${cmd.title || 'رسم بياني'}</div>
+                <div class="text-xs font-bold text-gray-800 mb-3">${cmd.title || 'رسم بياني'}</div>
                 <canvas id="${id}" height="180"></canvas>
             </div>`;
         messages.appendChild(div);
@@ -546,8 +621,13 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
         // رسم Chart.js إن كان متاحاً
         if (typeof Chart !== 'undefined') {
             const canvas = document.getElementById(id);
+            
+            // تعيين الألوان الافتراضية للخطوط لتكون داكنة
+            Chart.defaults.color = 'rgba(0,0,0,0.7)';
+            Chart.defaults.font.family = 'Tajawal, sans-serif';
+
             const colors = cmd.labels.map((_, i) =>
-                `hsl(${(i * 47 + 200) % 360}, 70%, 60%)`
+                `hsl(${(i * 47 + 200) % 360}, 70%, 55%)`
             );
             new Chart(canvas, {
                 type: cmd.chartType || 'bar',
@@ -563,11 +643,14 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
                 options: {
                     responsive: true,
                     plugins: {
-                        legend: { display: false }
+                        legend: { 
+                            display: cmd.chartType === 'pie' || cmd.chartType === 'doughnut',
+                            labels: { color: 'rgba(0,0,0,0.7)', font: { size: 10, weight: 'bold' } }
+                        }
                     },
-                    scales: {
-                        x: { ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        y: { ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    scales: (cmd.chartType === 'pie' || cmd.chartType === 'doughnut') ? {} : {
+                        x: { ticks: { color: 'rgba(0,0,0,0.6)', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+                        y: { ticks: { color: 'rgba(0,0,0,0.6)', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
                     }
                 }
             });
@@ -578,9 +661,9 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
             canvas.outerHTML = `<div class="space-y-2">
                 ${cmd.labels.map((l, i) => `
                     <div class="flex items-center gap-2 text-xs">
-                        <span class="text-white/60 w-16 text-left truncate">${l}</span>
-                        <div class="flex-1 bg-white/5 rounded-full h-5 overflow-hidden">
-                            <div class="h-full bg-primary/70 rounded-full flex items-center px-2 text-[10px] text-white" style="width:${Math.round((cmd.values[i] / max) * 100)}%">
+                        <span class="text-gray-600 w-16 text-left truncate">${l}</span>
+                        <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                            <div class="h-full bg-primary/70 rounded-full flex items-center px-2 text-[10px] text-white font-bold" style="width:${Math.round((cmd.values[i] / max) * 100)}%">
                                 ${cmd.values[i]}
                             </div>
                         </div>
@@ -595,17 +678,33 @@ ${teachers.map(t => `• ${t.name} (${t.role})`).join('\n')}
         div.innerHTML = `
             <div class="grid grid-cols-2 gap-2">
                 ${cmd.items.map(item => `
-                    <div class="liquid-glass-modal border border-white/10 p-3 rounded-2xl">
+                    <div class="bg-white border border-black/5 p-3 rounded-2xl shadow-sm">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings:'FILL' 1">${(item.icon || 'analytics').replace(/-/g, '_')}</span>
-                            <span class="text-[10px] text-white/50">${item.label}</span>
+                            <span class="text-[9px] text-gray-400 font-black uppercase tracking-wider">${item.label}</span>
                         </div>
-                        <div class="text-xl font-bold text-white">${item.value}</div>
-                        ${item.sub ? `<div class="text-[10px] text-white/40 mt-0.5">${item.sub}</div>` : ''}
+                        <div class="text-lg font-black text-gray-800">${item.value}</div>
+                        ${item.sub ? `<div class="text-[10px] text-gray-400 font-bold mt-0.5">${item.sub}</div>` : ''}
                     </div>`).join('')}
             </div>`;
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;
+    },
+
+    handleFileUpload(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        this.addMessage(`تم رفع ملف: ${file.name}`, 'user');
+        this.setStatus('جاري معالجة الملف...', true);
+        
+        // Placeholder for real processing
+        setTimeout(() => {
+            this.addMessage(`لقد استلمت الملف **${file.name}**. كيف تود أن أساعدك به؟ (مثلاً: استيراد البيانات، تحليل الأسماء، إلخ)`, 'ai');
+            this.setStatus('جاهز للمساعدة', false);
+        }, 1500);
+        
+        input.value = ''; // Reset input
     },
 
     _injectStyles() {

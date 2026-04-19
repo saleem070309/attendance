@@ -1,28 +1,29 @@
 <!DOCTYPE html>
-<html class="dark" dir="rtl" lang="ar">
+<html dir="rtl" lang="ar">
 
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#020a2f">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#faf7f2">
     <title>حالة الحضور | الطالب</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
-    <link rel="stylesheet" href="styles/liquid-glass.css">
+    <link href="styles/liquid-glass.css" rel="stylesheet" />
+    <link rel="manifest" href="manifest.json">
     <script>
         tailwind.config = {
-            darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#7aafff",
-                        "background": "#020a2f",
-                        "surface": "#081542",
-                        "success": "#4ade80",
-                        "error": "#f87171"
+                        "primary": "#ffa726",
+                        "background": "#faf7f2",
+                        "surface": "#ffffff",
+                        "success": "#4caf50",
+                        "error": "#f44336"
                     },
                     fontFamily: { sans: ['Tajawal', 'sans-serif'] }
                 }
@@ -32,14 +33,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
-            background-color: #020a2f;
-            background-image: radial-gradient(circle at 0% 100%, rgba(122, 175, 255, 0.1), transparent 50%);
+            background-color: #faf7f2;
         }
 
         .glass {
-            background: rgba(24, 39, 96, 0.4);
+            background: #ffffff;
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid #e0dcd0;
         }
 
         .calendar-dot {
@@ -50,7 +50,7 @@
     </style>
 </head>
 
-<body class="text-white font-sans p-4 sm:p-6 pb-24 overflow-x-hidden selection:bg-primary/30">
+<body class="text-gray-800 font-sans p-4 sm:p-6 pb-24 overflow-x-hidden selection:bg-primary/30">
     <!-- Liquid Glass Ambient Background -->
     <div class="liquid-glass-ambient fixed inset-0 pointer-events-none">
         <div class="glass-orb orb-1 opacity-20"></div>
@@ -61,17 +61,17 @@
     <header class="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-10 relative z-10 transition-all duration-700 delay-100 translate-y-0 opacity-100">
         <button onclick="window.location.href='index.html'"
             class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl liquid-button flex items-center justify-center text-primary group">
-            <span class="material-symbols-outlined text-lg sm:text-xl transition-transform group-hover:translate-x-1">arrow_forward</span>
+            <span class="material-symbols-outlined text-lg sm:text-xl transition-transform">arrow_forward</span>
         </button>
         <h1 class="text-xl sm:text-2xl font-bold refractive-text">تقرير حضور الطالب</h1>
     </header>
 
     <main class="max-w-xl mx-auto space-y-8">
         <!-- Student Card -->
-        <div id="studentCard" class="liquid-glass-prominent p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] relative overflow-hidden z-10 transition-all duration-700 delay-200">
+        <div id="studentCard" class="liquid-glass-prominent p-6 sm:p-8 rounded-2xl relative overflow-hidden z-10 transition-all duration-700 delay-200">
             <div class="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
                 <div class="relative">
-                    <img id="studentAvatar" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/30 object-cover shadow-2xl" src="">
+                    <img id="studentAvatar" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/30 object-cover" src="">
                     <div class="absolute inset-0 rounded-full border border-white/10 pointer-events-none"></div>
                 </div>
                 <div>
@@ -81,16 +81,16 @@
             </div>
 
             <button onclick="openQrModal()" class="w-full mb-6 sm:mb-8 liquid-button-refractive py-3.5 sm:py-4 rounded-xl sm:rounded-2xl flex items-center justify-center gap-2 sm:gap-3 transition-all active:scale-95 group">
-                <span class="material-symbols-outlined transition-transform group-hover:rotate-12 text-sm sm:text-base">qr_code_2</span>
+                <span class="material-symbols-outlined transition-transform text-sm sm:text-base">qr_code_2</span>
                 <span class="font-black text-sm sm:text-base">عرض رمز الحضور (QR)</span>
             </button>
 
             <div class="grid grid-cols-2 gap-4">
-                <div class="liquid-glass px-4 py-6 rounded-3xl flex flex-col items-center">
+                <div class="liquid-glass px-4 py-6 rounded-2xl flex flex-col items-center">
                     <span class="text-xs font-bold text-gray-400 mb-2">نسبة الحضور</span>
-                    <span id="attendanceRate" class="text-3xl font-black text-success drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">0%</span>
+                    <span id="attendanceRate" class="text-3xl font-black text-success">0%</span>
                 </div>
-                <div class="liquid-glass px-4 py-6 rounded-3xl flex flex-col items-center">
+                <div class="liquid-glass px-4 py-6 rounded-2xl flex flex-col items-center">
                     <span class="text-xs font-bold text-gray-400 mb-2">حالة اليوم</span>
                     <span id="todayStatus" class="font-black text-gray-300">لم يتم التسجيل</span>
                 </div>
@@ -98,7 +98,7 @@
         </div>
 
         <!-- History Navigation -->
-        <section class="liquid-glass p-5 sm:p-8 rounded-[2rem] sm:rounded-[3rem] space-y-6 sm:space-y-8 relative z-10 transition-all duration-700 delay-300">
+        <section class="liquid-glass p-5 sm:p-8 rounded-2xl space-y-6 sm:space-y-8 relative z-10 transition-all duration-700 delay-300">
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
                 <h3 class="text-xl font-bold flex items-center gap-3 refractive-text">
                     <span class="material-symbols-outlined text-primary">calendar_month</span>
@@ -133,22 +133,17 @@
     </main>
 
     <!-- QR Modal -->
-    <div id="qrModal" class="hidden fixed inset-0 z-[100] bg-black/40 backdrop-blur-md flex items-center justify-center p-4 opacity-0 transition-all duration-500 overflow-hidden">
-        <div class="liquid-glass-ambient absolute inset-0 pointer-events-none opacity-50">
-            <div class="glass-orb orb-1"></div>
-        </div>
-        
-        <div class="liquid-glass-prominent p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3.5rem] flex flex-col items-center max-w-sm w-full scale-90 blur-xl transition-all duration-500 relative z-10" id="qrModalContent">
-            <div class="w-12 h-1.5 bg-white/20 rounded-full mb-8"></div>
+    <div id="qrModal" class="hidden fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300 overflow-hidden">
+        <div class="liquid-glass-prominent p-6 sm:p-10 rounded-2xl flex flex-col items-center max-w-sm w-full scale-95 transition-transform duration-300 relative z-10" id="qrModalContent">
+            <div class="w-12 h-1.5 bg-gray-200 rounded-full mb-8"></div>
             
-            <h3 class="text-xl sm:text-2xl font-black mb-6 text-white flex flex-col items-center gap-2 sm:gap-3 text-center refractive-text">
+            <h3 class="text-xl sm:text-2xl font-black mb-6 text-gray-800 flex flex-col items-center gap-2 sm:gap-3 text-center refractive-text">
                 <span class="material-symbols-outlined text-3xl sm:text-4xl text-primary animate-pulse">qr_code_scanner</span>
                 رمز التحضير الذكي
             </h3>
             
-            <div class="bg-white p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative group transition-transform hover:scale-105 duration-500 border-4 border-white">
+            <div class="bg-white p-4 sm:p-6 rounded-2xl relative group duration-500 border-4 border-white">
                 <div id="qrcode" class="relative z-10 mix-blend-multiply"></div>
-                <div class="absolute inset-0 rounded-[2rem] sm:rounded-[2.5rem] border-4 border-primary/20 animate-ping opacity-20"></div>
             </div>
             
             <p class="text-gray-400 text-xs sm:text-sm mt-8 mb-8 text-center leading-relaxed font-medium">
@@ -156,7 +151,7 @@
                 <span class="text-primary/70 font-bold">سيتم تسجيل حضورك تلقائياً وبدقة عالية</span>
             </p>
             
-            <button onclick="closeQrModal()" class="w-full liquid-button py-4 rounded-xl sm:rounded-2xl font-black text-white transition-all active:scale-95 shadow-lg shadow-primary/10">إغلاق النافذة</button>
+            <button onclick="closeQrModal()" class="w-full liquid-button py-4 rounded-xl sm:rounded-2xl font-black text-on-primary transition-all active:scale-95">إغلاق النافذة</button>
         </div>
     </div>
 
@@ -205,7 +200,7 @@
                     text: student.id,
                     width: 200,
                     height: 200,
-                    colorDark : "#081542",
+                    colorDark : "#2c2c2c",
                     colorLight : "#ffffff",
                     correctLevel : QRCode.CorrectLevel.H
                 });
@@ -290,9 +285,9 @@
                 } else if (classReportSent) {
                     if (rec) {
                         if (rec.status === 'present') {
-                            circleClass = 'bg-success/20 border-success/40 text-success shadow-[0_0_20px_rgba(74,222,128,0.3)] ring-1 ring-success/50';
+                            circleClass = 'bg-success/20 border-success/40 text-success ring-1 ring-success/50';
                         } else {
-                            circleClass = 'bg-error/20 border-error/40 text-error shadow-[0_0_20px_rgba(248,113,113,0.3)] ring-1 ring-error/50';
+                            circleClass = 'bg-error/20 border-error/40 text-error ring-1 ring-error/50';
                         }
                     } else {
                         circleClass = 'bg-white/5 border-white/10 text-gray-500';
@@ -335,23 +330,32 @@
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
-                content.classList.remove('scale-90', 'blur-xl');
-                content.classList.add('scale-100', 'blur-0');
-            }, 50);
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
         }
 
         function closeQrModal() {
             const modal = document.getElementById('qrModal');
             const content = document.getElementById('qrModalContent');
             modal.classList.add('opacity-0');
-            content.classList.remove('scale-100', 'blur-0');
-            content.classList.add('scale-90', 'blur-xl');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
             setTimeout(() => {
                 modal.classList.add('hidden');
-            }, 500);
+            }, 300);
         }
 
         init();
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Registration failed', err));
+            });
+        }
     </script>
 </body>
 

@@ -11,7 +11,7 @@ const UI = {
         if (!document.getElementById('global-progress')) {
             const progress = document.createElement('div');
             progress.id = 'global-progress';
-            progress.className = 'fixed top-0 left-0 h-[3px] bg-primary z-[1000] transition-all duration-300 opacity-0 shadow-[0_0_10px_rgba(122,175,255,0.7)]';
+            progress.className = 'fixed top-0 left-0 h-[3px] bg-primary z-[1000] transition-all duration-300 opacity-0 shadow-lg';
             progress.style.width = '0%';
             document.body.appendChild(progress);
             this.progressElement = progress;
@@ -37,12 +37,12 @@ const UI = {
         const toast = document.createElement('div');
         const icon = type === 'success' ? 'check_circle' : (type === 'error' ? 'cancel' : 'info');
         const colors = {
-            success: 'bg-green-500/20 text-green-400 border-green-500/30',
-            error: 'bg-red-500/20 text-red-400 border-red-500/30',
-            info: 'bg-primary/20 text-primary border-primary/30'
+            success: 'bg-background text-green-600 border-green-200 shadow-xl',
+            error: 'bg-background text-red-600 border-red-200 shadow-xl',
+            info: 'bg-background text-primary border-primary/20 shadow-xl'
         };
 
-        toast.className = `fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-4 rounded-2xl backdrop-blur-xl border ${colors[type]} z-[1000] shadow-2xl transition-all duration-500 translate-y-20 opacity-0`;
+        toast.className = `fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-6 py-4 rounded-2xl border ${colors[type]} z-[1000] shadow-2xl transition-all duration-500 translate-y-20 opacity-0`;
         toast.innerHTML = `
             <span class="material-symbols-outlined">${icon}</span>
             <span class="font-bold text-sm">${message}</span>
@@ -61,32 +61,41 @@ const UI = {
         }, 3000);
     },
 
+    /**
+     * Ensures image strings have the correct base64 prefix
+     */
+    formatImgUrl(imgStr) {
+        if (!imgStr) return 'https://via.placeholder.com/400x200/f5f0e8/ccc?text=No+Image';
+        if (imgStr.startsWith('data:') || imgStr.startsWith('http') || imgStr.startsWith('blob:')) return imgStr;
+        return 'data:image/jpeg;base64,' + imgStr;
+    },
+
     showSkeleton(container, type = 'card', count = 3) {
         if (!container) return;
         let html = '';
-        const skeletonClass = "bg-white/5 animate-pulse rounded-2xl border border-white/5";
+        const skeletonClass = "bg-gray-200/50 animate-pulse rounded-2xl border border-gray-200";
         
         for (let i = 0; i < count; i++) {
             if (type === 'card') {
                 html += `
                 <div class="${skeletonClass} h-48 w-full overflow-hidden">
-                    <div class="h-2/3 bg-white/5"></div>
+                    <div class="h-2/3 bg-gray-200/30"></div>
                     <div class="p-4 space-y-2">
-                        <div class="h-4 w-1/2 bg-white/5 rounded"></div>
-                        <div class="h-3 w-1/3 bg-white/5 rounded"></div>
+                        <div class="h-4 w-1/2 bg-gray-200/40 rounded"></div>
+                        <div class="h-3 w-1/3 bg-gray-200/40 rounded"></div>
                     </div>
                 </div>`;
             } else if (type === 'list-item') {
                 html += `
                 <div class="${skeletonClass} p-4 flex items-center justify-between">
                     <div class="flex items-center gap-3 w-full">
-                        <div class="w-12 h-12 rounded-full bg-white/10"></div>
+                        <div class="w-12 h-12 rounded-full bg-gray-200/40"></div>
                         <div class="space-y-2 flex-1">
-                            <div class="h-4 w-1/3 bg-white/10 rounded"></div>
-                            <div class="h-3 w-1/4 bg-white/10 rounded"></div>
+                            <div class="h-4 w-1/3 bg-gray-200/40 rounded"></div>
+                            <div class="h-3 w-1/4 bg-gray-200/40 rounded"></div>
                         </div>
                     </div>
-                    <div class="w-20 h-8 rounded-full bg-white/10"></div>
+                    <div class="w-20 h-8 rounded-full bg-gray-200/40"></div>
                 </div>`;
             }
         }
@@ -176,10 +185,9 @@ const UI = {
 
             overlay.innerHTML = `
                 <div class="liquid-dialog-card w-full max-w-sm rounded-[2.5rem] p-8 text-center relative overflow-hidden">
-                    <!-- Decorative backglow -->
-                    <div class="absolute -top-24 -left-24 w-48 h-48 bg-primary/10 blur-[60px] rounded-full"></div>
+                    <!-- Removed backglow -->
                     
-                    <div class="w-20 h-20 mx-auto rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative">
+                    <div class="w-20 h-20 mx-auto rounded-3xl bg-gray-100 border border-gray-200 flex items-center justify-center mb-6 relative">
                          <span class="material-symbols-outlined text-4xl ${iconColor}">${icon}</span>
                     </div>
 
@@ -187,10 +195,10 @@ const UI = {
                     <p class="text-on-surface-variant text-sm leading-relaxed mb-8">${message}</p>
 
                     <div class="flex flex-col gap-3">
-                        <button id="confirmBtn" class="liquid-button ${btnColor} w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-black/20">
+                        <button id="confirmBtn" class="liquid-button ${btnColor} w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest">
                             ${confirmText}
                         </button>
-                        <button id="cancelBtn" class="liquid-button bg-white/5 border border-white/10 text-white w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all">
+                        <button id="cancelBtn" class="liquid-button bg-gray-100 border border-gray-300 text-gray-600 w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all">
                             ${cancelText}
                         </button>
                     </div>
@@ -227,14 +235,14 @@ const UI = {
             
             overlay.innerHTML = `
                 <div class="liquid-dialog-card w-full max-w-sm rounded-[2.5rem] p-8 text-center relative overflow-hidden">
-                    <div class="w-20 h-20 mx-auto rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative">
+                    <div class="w-20 h-20 mx-auto rounded-3xl bg-gray-100 border border-gray-200 flex items-center justify-center mb-6 relative">
                          <span class="material-symbols-outlined text-4xl text-primary">info</span>
                     </div>
 
                     <h3 class="text-2xl font-black text-white mb-3 refractive-text leading-tight">${title}</h3>
                     <p class="text-on-surface-variant text-sm leading-relaxed mb-8">${message}</p>
 
-                    <button id="okBtn" class="liquid-button bg-primary text-on-primary w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
+                    <button id="okBtn" class="liquid-button bg-primary text-on-primary w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest">
                         حسناً
                     </button>
                 </div>

@@ -38,6 +38,11 @@ const FileUtils = {
 
         const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = window.docx;
 
+        // Defensive checks
+        if (!content) content = { title: 'مستند بدون عنوان', sections: [] };
+        if (!content.title) content.title = 'مستند بدون عنوان';
+        if (!Array.isArray(content.sections)) content.sections = [];
+
         const children = [
             new Paragraph({
                 text: content.title,
@@ -47,6 +52,7 @@ const FileUtils = {
         ];
 
         content.sections.forEach(section => {
+            if (!section) return;
             children.push(new Paragraph({
                 text: section.heading,
                 heading: HeadingLevel.HEADING_1,
