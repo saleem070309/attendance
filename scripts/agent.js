@@ -9,6 +9,9 @@ const Agent = {
     isStreaming: false,
 
     async init() {
+        if (typeof emailjs !== 'undefined') {
+            emailjs.init("HNz0UjJRVZpAN8unm");
+        }
         this.renderToggle();
         this.chatHistory = [{ role: 'system', content: await this.getSystemContext() }];
     },
@@ -18,6 +21,9 @@ const Agent = {
             const [students, classes, records, teachers] = await Promise.all([
                 DB.getStudents(), DB.getClasses(), DB.getRecords(), DB.getTeachers()
             ]);
+
+            const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
+            const currentUserId = currentUser ? currentUser.id : '1';
 
             // إحصائيات مسبقة للسياق - مع مراعاة المنطقة الزمنية المحلية
             const now = new Date();
@@ -70,7 +76,13 @@ const Agent = {
                 lastReportSummary = `آخر تقرير بتاريخ ${lastReport.date} لفصل ${classObj ? classObj.name : 'غير معروف'}. الحضور: ${lrPresent}، الغياب: ${lrAbsent}.`;
             }
 
+            // آخر 10 تقارير للسياق
+            const recentReports = records
+                .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+                .slice(0, 10);
+
             return `أنت مساعد ذكي ونظام خبير متخصص لنظام "حضور وغياب المدرسي".
+المستخدم الحالي: ${currentUser ? currentUser.name : 'مدير النظام'} (ID: ${currentUserId})
 تاريخ اليوم: ${todayHuman} (${todayStr})
 
 ═══ إحصائيات النظام الحالية ═══
@@ -79,18 +91,24 @@ const Agent = {
 إجمالي التقارير المسجلة في التاريخ: ${records.length} تقرير
 ${lastReportSummary}
 
+═══ السجلات والتقارير الأخيرة (IDs للتعامل معها) ═══
+${recentReports.map(r => {
+    const cls = classes.find(c => c.id === r.classId);
+    return `• تقرير ID: ${r.id} | التاريخ: ${r.date} | الفصل: ${cls ? cls.name : r.classId} | الطلاب: ${r.details?.length || 0}`;
+}).join('\n')}
+
 ═══ ملخص حالة الطلاب ═══
 • طلاب يتطلبون متابعة (حضور < 75%): ${lowAttendance.length}
 • طلاب متميزون (حضور 100%): ${perfectAttendance.length}
 
 ═══ قائمة الطلاب التفصيلية ═══
-${studentStats.map(s => `• ${s.name || 'مسمى مفقود'} (${s.academicId || 'بدون رقم'}) | النسبة: ${s.attendanceRate}%`).join('\n')}
+${studentStats.map(s => `• ${s.name || 'مسمى مفقود'} | ID (الرقم الأكاديمي): ${s.academicId || 'بدون رقم'} | الفصل: ${s.classId || 'غير محدد'} | النسبة: ${s.attendanceRate}%`).join('\n')}
 
 ═══ الفصول الدراسية ═══
-${classes.map(c => `• ${c.name || 'مسمى غير محدد'} (${c.section || '-'})`).join('\n')}
+${classes.map(c => `• ${c.name || 'مسمى غير محدد'} (${c.section || '-'}) | ID: ${c.id}`).join('\n')}
 
 ═══ المعلمون والموظفون ═══
-${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'})`).join('\n')}
+${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}) | ID: ${t.id} | الرقم الوزاري: ${t.ministryId}`).join('\n')}
 
 ═══ القدرات الخاصة بك ═══
 - يمكنك تحليل البيانات وتقديم توصيات.
@@ -99,30 +117,46 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
 - يمكنك عرض رسوم بيانية (استخدم نوع chart).
 - **جديد**: يمكنك الكتابة في قاعدة البيانات (إضافة/تعديل/حذف) باستخدام نوع database_action.
 - **جديد**: يمكنك معالجة الصور والملفات المرفوعة.
+- **جديد**: يمكنك إرسال إيميلات لأي عنوان يطلبه المستخدم (استخدم نوع send_email).
 
 ═══ تعليمات الأوامر ═══
 عند تنفيذ أي عملية، أضف في نهاية ردك سطراً واحداً يبدأ بـ |||COMMAND|||
 يليه مباشرة JSON صحيح على هذا الشكل:
 
+للعمليات على قاعدة البيانات (insert, update, delete):
+بناءً على طلب المستخدم، تأكد دائماً من استخدام المعرف الصحيح من القوائم المزودة. للطلاب استخدم (الرقم الأكاديمي) كمعرف، وللمعلمين والفصول والتقارير استخدم قيمة (ID) المذكورة. 
+**قاعدة هامة**: عند الحذف (delete) أو التعديل (update)، يجب إرسال حقل باسم "id" يحتوي على هذا المعرف. لديك الصلاحية الكاملة.
+
+للطلاب والمعلمين والفصول:
+|||COMMAND|||{"type":"database_action","action":"insert","table":"students","data":{"name":"اسم جديد","academicId":"123","classId":"ID_CLASS"}}
+// يمكنك أيضاً إضافة عدة عناصر في مصفوفة واحدة:
+|||COMMAND|||{"type":"database_action","action":"insert","table":"students","data":[{"name":"الأول","academicId":"1"}, {"name":"الثاني","academicId":"2"}]}
+|||COMMAND|||{"type":"database_action","action":"update","table":"students","id":"ID_HERE","data":{"name":"اسم معدل","classId":"NEW_ID"}}
+|||COMMAND|||{"type":"database_action","action":"delete","table":"students","ids":["ID1", "ID2", "ID3"]}
+
+للتقارير والسجلات (records):
+عند إنشاء تقرير جديد، استخدم table: "records" وزود date, classId, teacherId ومصفوفة details التي تحتوي على حالة كل طالب (present أو absent).
+|||COMMAND|||{"type":"database_action","action":"insert","table":"records","data":{"date":"2024-04-22","classId":"c1","teacherId":"${currentUserId}","details":[{"studentId":"2024001","status":"present"},{"studentId":"2024042","status":"absent"}]}}
+|||COMMAND|||{"type":"database_action","action":"update","table":"records","id":"REPORT_ID_FROM_LIST","data":{"details":[{"studentId":"2024001","status":"absent"}]}}
+|||COMMAND|||{"type":"database_action","action":"delete","table":"records","id":"REPORT_ID_FROM_LIST"}
+
 للإكسل:
 |||COMMAND|||{"type":"export_excel","data":[{"الاسم":"أحمد"}],"fileName":"تقرير.xlsx"}
-
-للعمليات على قاعدة البيانات (insert, update, delete):
-|||COMMAND|||{"type":"database_action","action":"insert","table":"students","data":{"name":"اسم جديد","academicId":"123","classId":"ID_CLASS"}}
-|||COMMAND|||{"type":"database_action","action":"insert","table":"classes","data":{"name":"الصف العاشر","section":"ج"}}
-|||COMMAND|||{"type":"database_action","action":"insert","table":"teachers","data":{"name":"المعلم","ministryId":"100","password":"123","role":"teacher"}}
-|||COMMAND|||{"type":"database_action","action":"update","table":"students","id":"ID_HERE","data":{"name":"اسم معدل"}}
 
 للوورد (Word):
 |||COMMAND|||{"type":"export_word","content":{"title":"عنوان التقرير","sections":[{"heading":"مقدمة","text":"نص القسم هنا"}]},"fileName":"تقرير.docx"}
 
-للرسم البياني:
+للرسومات البيانية:
 |||COMMAND|||{"type":"chart","chartType":"bar","labels":["أ","ب"],"values":[80,90],"title":"العنوان"}
+
+للإيميلات (إرسال لأي عنوان يطلبه المستخدم):
+|||COMMAND|||{"type":"send_email","to":"recipient@email.com","subject":"موضوع الإيميل","message":"محتوى الرسالة التفصيلي"}
 
 قواعد صارمة:
 1. التزم بالبيانات الحقيقية.
-2. لا تذكر أنك لا تملك صلاحية، فقد تم تزويدك بالبيانات اللازمة.
-3. |||COMMAND||| يجب أن يكون في سطر مستقل في نهاية الرد.`;
+2. يمكنك إرسال أكثر من أمر في رد واحد إذا لزم الأمر، كل واحد يبدأ بـ |||COMMAND|||.
+3. لا تذكر أنك لا تملك صلاحية، فقد تم تزويدك بالبيانات اللازمة.
+4. |||COMMAND||| يجب أن يكون في سطر مستقل في نهاية الرد.`;
         } catch (e) {
             console.error('Context error:', e);
             return 'أنت مساعد ذكي لنظام الحضور والغياب. حدث خطأ أثناء جلب البيانات من قاعدة البيانات.';
@@ -154,7 +188,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
         // Chat Container
         const container = document.createElement('div');
         container.id = 'agent-container';
-        container.className = 'hidden fixed bottom-24 left-6 w-[90vw] max-w-[420px] h-[65vh] z-[100] liquid-glass-modal rounded-[2.5rem] flex flex-col shadow-2xl transition-all duration-400 opacity-0 translate-y-4';
+        container.className = 'hidden fixed bottom-24 left-4 right-4 h-[75vh] z-[100] bg-white/10 backdrop-blur-2xl rounded-[2.5rem] border border-white/20 flex flex-col shadow-2xl transition-all duration-400 opacity-0 translate-y-4';
         container.innerHTML = `
             <div class="px-5 py-4 flex justify-between items-center border-b border-white/10 shrink-0">
                 <div class="flex items-center gap-3">
@@ -162,7 +196,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
                         <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings:'FILL' 1">auto_awesome</span>
                     </div>
                     <div>
-                        <h3 class="font-bold text-white text-sm leading-tight">الوكيل الذكي</h3>
+                        <h3 class="font-bold text-white text-sm leading-tight">AutoPilot</h3>
                         <div id="agent-status" class="text-xs text-white/40">جاهز للمساعدة</div>
                     </div>
                 </div>
@@ -178,9 +212,9 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
 
             <div id="agent-messages" class="flex-1 overflow-y-auto p-4 space-y-4 liquid-glass-scrollbar hide-scrollbar">
                 <div class="flex flex-col items-start animate-fade-in mx-1">
-                    <span class="text-[9px] font-black text-white/40 mb-1 px-1 uppercase tracking-tight">وكيل الذكاء الاصطناعي</span>
+                    <span class="text-[9px] font-black text-white/40 mb-1 px-1 uppercase tracking-tight">AutoPilot</span>
                     <div class="bg-primary/10 border border-primary/20 p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed max-w-[92%] text-white/90 relative">
-                        أهلاً! أنا مساعدك الذكي المتخصص في بيانات الحضور والغياب 📊<br><br>
+                        أهلاً! أنا AutoPilot، مساعدك الذكي المتخصص في بيانات الحضور والغياب 📊<br><br>
                         يمكنني مساعدتك في:
                         <ul class="mt-1 space-y-0.5 text-white/70">
                             <li>• تحليل نسب الحضور والغياب</li>
@@ -266,7 +300,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
         const messages = document.getElementById('agent-messages');
         messages.innerHTML = `
             <div class="flex flex-col items-start animate-fade-in mx-1">
-                <span class="text-[9px] font-black text-white/40 mb-1 px-1 uppercase tracking-tight">وكيل الذكاء الاصطناعي</span>
+                <span class="text-[9px] font-black text-white/40 mb-1 px-1 uppercase tracking-tight">AutoPilot</span>
                 <div class="bg-primary/10 border border-primary/20 p-3.5 rounded-2xl rounded-tr-sm text-xs leading-relaxed max-w-[92%] text-white/90">
                     تم مسح المحادثة. كيف يمكنني مساعدتك؟
                 </div>
@@ -328,10 +362,14 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
                     "X-Title": "Attendance AI Agent"
                 },
                 body: JSON.stringify({
-                    model: "google/gemini-3.1-flash-lite-preview",  // نموذج أفضل
+                    model: "google/gemini-2.0-flash-001",  // نموذج أحدث وأكثر استقراراً
                     messages: this.chatHistory,
-                    temperature: 0.3,
-                    max_tokens: 4096
+                    temperature: 0.1, // تقليل العشوائية لضمان دقة الأوامر
+                    max_tokens: 4096,
+                    provider: {
+                        order: ["Google", "DeepInfra"],
+                        allow_fallbacks: true
+                    }
                 })
             });
 
@@ -346,7 +384,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
 
             this.chatHistory.push({ role: 'assistant', content: resultText });
             loadingDiv.remove();
-            this.handleAIResponse(resultText);
+            await this.handleAIResponse(resultText);
 
         } catch (e) {
             loadingDiv.remove();
@@ -368,7 +406,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
 
         // Get current user info for label
         const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
-        const labelText = isUser ? (currentUser ? currentUser.name : 'مدير النظام') : 'وكيل الذكاء الاصطناعي';
+        const labelText = isUser ? (currentUser ? currentUser.name : 'مدير النظام') : 'AutoPilot';
 
         // Strip commands from display text
         const displayText = text.split('|||COMMAND|||')[0].trim();
@@ -411,7 +449,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
     // ═══════════════════════════════════════════════════
     // محلل الأوامر - الإصلاح الرئيسي + منطق قوي
     // ═══════════════════════════════════════════════════
-    handleAIResponse(rawText) {
+    async handleAIResponse(rawText) {
         const DELIMITER = '|||COMMAND|||';
         const parts = rawText.split(DELIMITER);
 
@@ -419,7 +457,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
         const mainText = parts[0].trim();
         if (mainText) this.addMessage(mainText, 'ai');
 
-        // معالجة كل أمر
+        // معالجة كل أمر بالتتابع
         for (let i = 1; i < parts.length; i++) {
             const cmdStr = parts[i].trim();
             if (!cmdStr) continue;
@@ -428,14 +466,14 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
                 // محاولة تحليل JSON مع تنظيف مسبق
                 const cleanedCmd = this._sanitizeJSON(cmdStr);
                 const cmd = JSON.parse(cleanedCmd);
-                this.executeCommand(cmd);
+                await this.executeCommand(cmd); // انتظار انتهاء العملية الحالية
             } catch (e) {
                 console.error('Command parse error:', e, '\nRaw:', cmdStr);
                 // محاولة استخراج JSON بديل
                 const fallback = this._extractJSONFallback(cmdStr);
                 if (fallback) {
                     try {
-                        this.executeCommand(JSON.parse(fallback));
+                        await this.executeCommand(JSON.parse(fallback));
                     } catch (e2) {
                         this._showCommandError(cmdStr);
                     }
@@ -484,7 +522,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
     // ═══════════════════════════════════════════════════
     // تنفيذ الأوامر - الإصلاح الرئيسي: messages.appendChild مضاف!
     // ═══════════════════════════════════════════════════
-    executeCommand(cmd) {
+    async executeCommand(cmd) {
         const messages = document.getElementById('agent-messages');
 
         if (cmd.type === 'export_excel') {
@@ -513,10 +551,13 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
             });
 
         } else if (cmd.type === 'database_action') {
-            this._handleDatabaseAction(messages, cmd);
+            await this._handleDatabaseAction(messages, cmd);
 
         } else if (cmd.type === 'chart') {
             this._renderChart(messages, cmd);
+
+        } else if (cmd.type === 'send_email') {
+            await this._handleSendEmail(messages, cmd);
 
         } else if (cmd.type === 'stats') {
             this._renderStatsCards(messages, cmd);
@@ -524,6 +565,47 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
         } else {
             console.warn('Unknown command type:', cmd.type);
         }
+    },
+
+    async _handleSendEmail(messages, cmd) {
+        const div = document.createElement('div');
+        div.className = 'animate-fade-in mb-3 mx-2';
+        div.innerHTML = `
+            <div class="bg-blue-600 text-white p-3 rounded-2xl text-[10px] font-bold flex items-center justify-between">
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span class="material-symbols-outlined text-sm">mail</span>
+                    <span class="truncate">إرسال إلى: ${cmd.to}</span>
+                </div>
+                <div id="email-status-${Date.now()}" class="text-blue-200 shrink-0 mr-2">جاري...</div>
+            </div>`;
+        messages.appendChild(div);
+        const status = div.querySelector('div:last-child');
+
+        try {
+            await this.sendEmail(cmd.to, cmd.subject, cmd.message);
+            status.textContent = 'تم الإرسال بنجاح ✓';
+            status.className = 'text-green-300';
+
+        } catch (e) {
+            status.textContent = 'فشل الإرسال ✗';
+            status.className = 'text-red-300';
+            console.error('Email Error:', e);
+            this.addMessage(`❌ فشل إرسال الإيميل: ${e.message || 'حدث خطأ غير معروف'}`, 'ai');
+        }
+    },
+
+    async sendEmail(to, subject, message) {
+        if (typeof emailjs === 'undefined') {
+            throw new Error('EmailJS library is not loaded');
+        }
+        
+        const templateParams = {
+            to_email: to,
+            subject: subject,
+            message: message
+        };
+
+        return await emailjs.send("service_qtnp6zk", "template_a11cl9r", templateParams, "HNz0UjJRVZpAN8unm");
     },
 
     async _handleDatabaseAction(messages, cmd) {
@@ -539,27 +621,60 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
             </div>`;
         messages.appendChild(div);
         
+        const status = div.querySelector('div:last-child');
+
+        // التحقق من المعرفات الوهمية (Placeholders)
+        const placeholderIds = ['ID_HERE', 'STUDENT_ID', 'TEACHER_ID', 'CLASS_ID', 'ID_CLASS', 'NEW_ID'];
+        if (cmd.id && placeholderIds.includes(cmd.id)) {
+            status.textContent = 'خطأ: معرف غير صالح';
+            status.className = 'text-red-400';
+            this.addMessage(`⚠️ تنبيه: حاول الوكيل استخدام معرف غير حقيقي (${cmd.id}). يرجى تزويده بالمعرف الصحيح من القوائم.`, 'ai');
+            return;
+        }
+
         try {
             let result;
+            
             if (cmd.action === 'insert') {
-                result = await DB.insert(cmd.table, cmd.data);
-            } else if (cmd.action === 'update') {
-                result = await DB.update(cmd.table, cmd.id, cmd.data);
-            } else if (cmd.action === 'delete') {
-                result = await DB.delete(cmd.table, cmd.id);
+                const dataItems = Array.isArray(cmd.data) ? cmd.data : [cmd.data];
+                status.textContent = `جاري إضافة ${dataItems.length} عنصر...`;
+                
+                for (const item of dataItems) {
+                    await DB.insert(cmd.table, item);
+                }
+                status.textContent = 'تمت الإضافة بنجاح ✓';
+            } else {
+                // الحذف والتعديل يتطلب معرفات
+                const ids = cmd.ids || [cmd.id || cmd.ID || cmd.studentId || cmd.teacherId || cmd.classId || cmd.academicId];
+                const validIds = ids.filter(id => id && !placeholderIds.includes(id));
+
+                if (validIds.length === 0) {
+                    throw new Error('لم يتم تزويد أي معرفات (IDs) صالحة للعملية. يرجى تزويد حقل "id"');
+                }
+
+                status.textContent = `جاري تنفيذ ${validIds.length} عملية...`;
+                for (const finalId of validIds) {
+                    if (cmd.action === 'update') {
+                        await DB.update(cmd.table, finalId, cmd.data);
+                    } else if (cmd.action === 'delete') {
+                        await DB.delete(cmd.table, finalId);
+                    }
+                }
+                status.textContent = 'تم تنفيذ المجموعة بنجاح ✓';
             }
             
-            const status = div.querySelector('div:last-child');
-            status.textContent = 'تم بنجاح ✓';
             status.className = 'text-green-400';
             
-            // Refresh UI if necessary (e.g., if we are not on AI tab, but let's assume global refresh for now)
-            if (typeof window.renderAll === 'function') window.renderAll();
+
+
+            if (typeof window.renderAll === 'function') {
+                await window.renderAll();
+            }
         } catch (e) {
-            const status = div.querySelector('div:last-child');
             status.textContent = 'فشل ✗';
             status.className = 'text-red-400';
             console.error('DB Action error:', e);
+            this.addMessage(`❌ خطأ: ${e.message}.`, 'ai');
         }
     },
 

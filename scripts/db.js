@@ -9,6 +9,7 @@ const DB = {
         TEACHERS: 'v2_teachers',
         CLASSES: 'v2_classes',
         RECORDS: 'v2_records',
+        REPORTS: 'v2_records', // AI Alias
         HOLIDAYS: 'v2_holidays',
         CURRENT_USER: 'attendance_current_user' // Keep local for session
     },
@@ -159,12 +160,21 @@ const DB = {
         await this.dbInstance.collection(this.KEYS.CLASSES).doc(id).set(normalized);
     },
     async deleteClass(id) {
+        // Delete all students in this class first
+        const students = await this.getStudents(id);
+        for (const s of students) {
+            await this.deleteStudent(s.id);
+        }
         await this.dbInstance.collection(this.KEYS.CLASSES).doc(id).delete();
     },
     async addStudent(student) {
         const id = student.academicId || Date.now().toString();
         student.academicId = id;
         student.name = student.name || 'طالب مجهول';
+        
+        // Defensive data normalization for AI Agent
+        if (student.classid && !student.classId) student.classId = student.classid;
+        
         await this.dbInstance.collection(this.KEYS.STUDENTS).doc(id).set(student);
     },
     async deleteStudent(id) {
@@ -180,6 +190,9 @@ const DB = {
         const ref = this.dbInstance.collection(this.KEYS.STUDENTS).doc(id);
         const doc = await ref.get();
         if (doc.exists) {
+            // Defensive data normalization for AI Agent
+            if (updatedData.classid && !updatedData.classId) updatedData.classId = updatedData.classid;
+            
             await ref.update(updatedData);
         }
     },
