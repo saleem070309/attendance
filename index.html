@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#faf7f2">
+    <meta name="theme-color" content="#faf7f2"> <!-- Using var(--color-cream) -->
     <title>دخول | نظام الحضور الذكي</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
@@ -19,8 +19,8 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#ffa726",
-                        "on-primary": "#2c2c2c",
+                        "primary": "#ffab31",
+                        "on-primary": "#1b1b1b",
                         "background": "#faf7f2",
                         "surface": "#ffffff"
                     },
@@ -33,7 +33,7 @@
     </script>
     <style>
         body {
-            background-color: #faf7f2;
+            background-color: var(--color-cream);
             overflow-x: hidden;
         }
 
@@ -51,13 +51,13 @@
 
         .indicator-teacher {
             transform: translateX(0);
-            background: #ffa726;
+            background: var(--color-primary);
             box-shadow: none;
         }
 
         .indicator-student {
             transform: translateX(-100%);
-            background: #ffcc80;
+            background: var(--color-ice);
             box-shadow: none;
         }
 
@@ -143,23 +143,21 @@
                     النظام</button>
             </div>
 
-            <!-- Student Search Form -->
-            <div id="studentForm" class="liquid-glass liquid-glass-prominent rounded-xl p-6 sm:p-8 space-y-4 sm:space-y-6 hidden">
+            <div id="studentForm" class="liquid-glass liquid-glass-prominent rounded-xl p-6 sm:p-8 space-y-4 sm:space-y-5 hidden">
                 <div class="space-y-1 sm:space-y-2">
-                    <label class="text-xs sm:text-sm font-medium text-gray-600 refractive-text">رقم الطالب (ID)</label>
+                    <label class="text-xs sm:text-sm font-medium text-gray-600 refractive-text">الرقم الوطني</label>
                     <div class="relative">
-                        <span
-                            class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">person_search</span>
-                        <input type="text" id="studentId"
+                        <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-gray-500">badge</span>
+                        <input type="text" id="studentNationalId"
                             class="liquid-glass-input w-full rounded-xl pr-12 py-3 sm:py-3.5 text-xs sm:text-sm"
-                            placeholder="مثال: 2024001">
+                            placeholder="أدخل الرقم الوطني للطالب">
                     </div>
                 </div>
-                <button onclick="handleStudentSearch()"
+
+                <button onclick="handleStudentSearch()" id="searchBtn"
                     class="liquid-button liquid-button-prominent w-full py-3.5 sm:py-4 text-on-primary font-bold rounded-xl text-xs sm:text-sm">عرض
                     حالة الحضور</button>
-                <p class="text-[11px] text-center text-gray-500">يمكنك متابعة تقرير الحضور والغياب اليومي وسجل الأيام
-                    السابقة.</p>
+                <p class="text-[11px] text-center text-gray-500">يرجى إدخال الرقم الوطني للوصول إلى تقرير حضور الطالب بشكل آمن.</p>
             </div>
         </div>
     </div>
@@ -169,7 +167,10 @@
     <script src="scripts/auth.js"></script>
     <script src="scripts/ui-utils.js"></script>
     <script>
-        function switchTab(type) {
+        let allClasses = [];
+        let allStudents = [];
+
+        async function switchTab(type) {
             const tabs = ['teacherTab', 'studentTab'];
             const forms = ['teacherForm', 'studentForm'];
             const indicator = document.getElementById('tabIndicator');
@@ -204,6 +205,8 @@
             });
         }
 
+
+
         async function handleLogin() {
             const mid = document.getElementById('ministryId').value;
             const pass = document.getElementById('password').value;
@@ -225,27 +228,37 @@
                 UI.toast(result.message, 'error');
             }
         }
-
         async function handleStudentSearch() {
-            const sid = document.getElementById('studentId').value;
+            const nationalId = document.getElementById('studentNationalId').value;
+            if (!nationalId) {
+                UI.toast('يرجى إدخال الرقم الوطني', 'error');
+                return;
+            }
 
-            const btn = event.currentTarget;
+            const btn = document.getElementById('searchBtn');
             UI.setLoading(true);
             btn.disabled = true;
 
-            await DB.init();
-            const students = await DB.getStudents();
-            const student = students.find(s => s.id === sid || s.academicId === sid);
+            try {
+                await DB.init();
+                const students = await DB.getStudents();
+                const student = students.find(s => s.academicId === nationalId || s.id === nationalId);
 
-            if (student) {
-                UI.toast('تم العثور على الطالب، جاري الانتقال...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'student.html?id=' + (student.id || sid);
-                }, 1000);
-            } else {
+                if (student) {
+                    UI.toast('تم التحقق بنجاح، جاري التحميل...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'student.html?id=' + (student.academicId || student.id);
+                    }, 1000);
+                } else {
+                    UI.setLoading(false);
+                    btn.disabled = false;
+                    UI.toast('عذراً، لم يتم العثور على طالب بهذا الرقم الوطني', 'error');
+                }
+            } catch (e) {
+                console.error(e);
                 UI.setLoading(false);
                 btn.disabled = false;
-                UI.toast('هذا الرقم غير مسجل في النظام', 'error');
+                UI.toast('حدث خطأ أثناء البحث عن الطالب', 'error');
             }
         }
 

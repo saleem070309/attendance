@@ -1,4 +1,4 @@
-file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admin.html<!DOCTYPE html>
+<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 
 <head>
@@ -12,11 +12,13 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <link href="styles/liquid-glass.css" rel="stylesheet" />
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script type="module">
         import * as docx from 'https://cdn.jsdelivr.net/npm/docx@8.5.0/+esm';
         window.docx = docx;
@@ -346,16 +348,40 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         <div class="orb orb-accent"></div>
     </div>
 
+    <!-- Splash Loading Screen -->
+    <div id="splashScreen" class="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center transition-all duration-700">
+        <div class="relative mb-8">
+            <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-[2rem] liquid-glass flex items-center justify-center animate-pulse">
+                <span class="material-symbols-outlined text-4xl sm:text-6xl text-primary" style="font-variation-settings: 'FILL' 1;">face_retouching_natural</span>
+            </div>
+            <div class="absolute -inset-4 rounded-[2.5rem] border-2 border-primary/20 animate-ping"></div>
+        </div>
+        <h2 class="text-2xl font-black refractive-text mb-4">جاري تهيئة النظام الإداري</h2>
+        <div class="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden mb-4">
+            <div id="splashProgress" class="h-full bg-primary transition-all duration-500 w-10"></div>
+        </div>
+        <p id="splashStatus" class="text-gray-500 text-sm font-medium animate-pulse text-center px-6">جاري تحميل تقنيات التعرف على الوجوه وحفظها...</p>
+    </div>
+
     <!-- ─── Fixed Header ─── -->
     <header id="main-header">
         <div>
-            <h1 class="text-sm font-extrabold text-gray-800" style="line-height:1.2">لوحة التحكم</h1>
+            <h1 class="text-sm font-extrabold text-gray-800" style="color:var(--color-dark); line-height:1.2">لوحة
+                التحكم</h1>
+            <div id="agent-status" class="hidden text-[10px] font-bold text-primary">جاهز للمساعدة</div>
             <p id="active-tab-title" class="text-[10px] font-bold text-primary">المعلومات اليومية</p>
         </div>
-        <button onclick="Auth.logout()"
-            class="w-9 h-9 rounded-xl liquid-glass-icon icon-error interactive flex items-center justify-center">
-            <span class="material-symbols-outlined" style="font-size:16px">power_settings_new</span>
-        </button>
+        <div class="flex items-center gap-2">
+            <button id="agent-clear-btn" onclick="Agent.clearChat()"
+                class="hidden w-9 h-9 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 transition-all interactive"
+                title="محادثة جديدة">
+                <span class="material-symbols-outlined text-xl">delete</span>
+            </button>
+            <button onclick="Auth.logout()"
+                class="w-9 h-9 rounded-xl liquid-glass-icon icon-error interactive flex items-center justify-center">
+                <span class="material-symbols-outlined" style="font-size:16px">power_settings_new</span>
+            </button>
+        </div>
     </header>
 
     <!-- ─── Tabs Wrapper ─── -->
@@ -468,97 +494,53 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         </div>
 
         <!-- ═══ TAB 2: الذكاء الاصطناعي ═══ -->
-        <div id="tab-ai" class="tab-panel !flex-col !gap-3">
-
-            <!-- رأس الوكيل (Header) -->
-            <div class="flex items-center justify-between shrink-0 mb-1">
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-10 h-10 rounded-2xl flex items-center justify-center bg-orange-50 border border-orange-100 shadow-sm">
-                        <span class="material-symbols-outlined text-primary text-[20px]"
-                            style="font-variation-settings:'FILL' 1">smart_toy</span>
-                    </div>
-                    <div>
-                        <p class="font-black text-base text-gray-800 leading-tight">الوكيل الذكي</p>
-                        <div id="agent-status" class="text-[10px] text-gray-500 font-bold mt-0.5">جاهز للمساعدة</div>
+        <div id="tab-ai" class="tab-panel !p-0 flex flex-col bg-[#fafaf9]">
+            <div class="px-6 pt-2 pb-2 text-right">
+                <h2 class="text-3xl font-black text-[#1b1b1b] tracking-tighter">AutoPilot</h2>
+            </div>
+            <!-- Messages Container -->
+            <div id="agent-messages"
+                class="flex-1 overflow-y-auto p-4 space-y-6 hide-scrollbar max-w-2xl mx-auto w-full">
+                <!-- Welcome Message -->
+                <div class="flex flex-col items-start animate-fade-in mx-2">
+                    <span
+                        class="text-[9px] font-black text-primary/70 mb-1 px-1 uppercase tracking-tight">AutoPilot</span>
+                    <div class="bg-white border border-gray-100 shadow-sm text-gray-800 p-4 rounded-2xl rounded-tr-sm text-sm font-medium leading-relaxed"
+                        style="max-width:90%">
+                        أهلاً! كيف يمكنني مساعدتك الآن؟ ✨
                     </div>
                 </div>
-                <button id="agent-clear-btn"
-                    class="w-9 h-9 rounded-xl liquid-glass interactive flex items-center justify-center text-gray-400 hover:text-error transition-colors">
-                    <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
-                </button>
             </div>
 
-            <!-- حاوية الدردشة المدمجة والموحدة -->
-            <div id="agent-chat-bg"
-                class="flex-1 flex flex-col min-h-0 liquid-glass liquid-glass-prominent rounded-3xl overflow-hidden border border-primary/10 shadow-[0_4px_24px_-8px_rgba(255,167,38,0.15)] relative">
+            <!-- Centered Suggestions -->
+            <div id="agent-suggestions" class="flex flex-wrap justify-center gap-2 p-4 shrink-0 max-w-2xl mx-auto">
+                <button class="autopilot-suggestion-btn suggestion-btn interactive">طلاب بغياب كثير</button>
+                <button class="autopilot-suggestion-btn suggestion-btn interactive">تقرير إكسل شامل</button>
+                <button class="autopilot-suggestion-btn suggestion-btn interactive">إحصائيات اليوم</button>
+                <button class="autopilot-suggestion-btn suggestion-btn interactive">رسم بياني للحضور</button>
+            </div>
 
-                <!-- رسائل الدردشة -->
-                <div id="agent-messages" class="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
+            <!-- New Integrated Input Area -->
+            <div class="pb-6 px-4 shrink-0 max-w-2xl mx-auto w-full">
+                <div class="autopilot-input-container">
+                    <input type="file" id="agent-file-input" class="hidden" onchange="Agent.handleFileUpload(this)">
 
-                    <div class="flex flex-col items-start mb-4 mx-2 animate-fade-in">
-                        <span class="text-[9px] font-black text-gray-400 mb-1 px-1 uppercase tracking-tight">وكيل الذكاء الاصطناعي</span>
-                        <div class="agent-msg-ai bg-white border border-primary/15 shadow-sm text-gray-800 p-3.5 rounded-2xl rounded-tr-sm text-xs font-semibold leading-relaxed relative"
-                            style="max-width:92%">
-                            أهلاً! أنا مساعدك الذكي المتخصص في بيانات الحضور والغياب 📊<br><br>
-                            يمكنني مساعدتك في:
-                            <ul class="mt-2.5 space-y-1.5 text-gray-600 font-medium">
-                                <li class="flex items-center gap-1.5">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-primary/60"></div>تحليل نسب الحضور والغياب
-                                </li>
-                                <li class="flex items-center gap-1.5">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-primary/60"></div>إنشاء تقارير إكسل ووورد
-                                </li>
-                                <li class="flex items-center gap-1.5">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-primary/60"></div>رسوم بيانية ولوحات إحصائية
-                                </li>
-                                <li class="flex items-center gap-1.5">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-primary/60"></div>تتبع الطلاب الأكثر غياباً
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                    <!-- Left Button (+) -->
+                    <button onclick="document.getElementById('agent-file-input').click()"
+                        class="autopilot-btn-left interactive" title="إرفاق ملف">
+                        <span class="material-symbols-outlined">add</span>
+                    </button>
 
-                <!-- أزرار الاقتراحات (أصبحت بالداخل وبتصميم يتماشى مع الخلفية) -->
-                <div id="agent-suggestions"
-                    class="flex gap-2 overflow-x-auto hide-scrollbar px-3 pb-3 pt-1 shrink-0 relative z-10 mask-edges">
-                    <button
-                        class="suggestion-btn shrink-0 text-[10px] px-3.5 py-2 rounded-xl font-bold bg-white border border-primary/20 text-gray-600 interactive hover:bg-orange-50 hover:text-primary transition-colors">طلاب
-                        بغياب كثير</button>
-                    <button
-                        class="suggestion-btn shrink-0 text-[10px] px-3.5 py-2 rounded-xl font-bold bg-white border border-primary/20 text-gray-600 interactive hover:bg-orange-50 hover:text-primary transition-colors">تقرير
-                        إكسل شامل</button>
-                    <button
-                        class="suggestion-btn shrink-0 text-[10px] px-3.5 py-2 rounded-xl font-bold bg-white border border-primary/20 text-gray-600 interactive hover:bg-orange-50 hover:text-primary transition-colors">إحصائيات
-                        اليوم</button>
-                    <button
-                        class="suggestion-btn shrink-0 text-[10px] px-3.5 py-2 rounded-xl font-bold bg-white border border-primary/20 text-gray-600 interactive hover:bg-orange-50 hover:text-primary transition-colors">رسم
-                        بياني للحضور</button>
-                </div>
+                    <!-- Textarea -->
+                    <textarea id="agent-input" placeholder="اكتب طلبك للمساعد الذكي..." rows="1"
+                        autocomplete="off"></textarea>
 
-                <!-- منطقة الكتابة المضيئة والنظيفة -->
-                <div class="p-3 bg-white/70 backdrop-blur-lg border-t border-primary/10 shrink-0">
-                    <div class="flex items-center gap-2">
-                        <!-- ملف مرفق مخفي -->
-                        <input type="file" id="agent-file-input" class="hidden" onchange="Agent.handleFileUpload(this)">
-                        <button onclick="document.getElementById('agent-file-input').click()"
-                            class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-gray-100 text-gray-500 interactive hover:bg-gray-200 transition-colors">
-                            <span class="material-symbols-outlined text-[20px]">attach_file</span>
-                        </button>
-                        
-                        <textarea id="agent-input" placeholder="اكتب طلبك للمساعد الذكي..."
-                            class="flex-1 liquid-glass-input rounded-2xl px-4 py-3 text-xs font-bold text-gray-800 placeholder-gray-400 outline-none focus:border-primary/40 focus:bg-white transition-all shadow-inner resize-none overflow-y-auto max-h-32 hide-scrollbar"
-                            rows="1"
-                            autocomplete="off"></textarea>
-                            
-                        <button id="agent-send-btn" onclick="Agent.sendMessage()"
-                            class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 bg-gradient-to-tr from-[#ffa726] to-[#fb8c00] text-white interactive shadow-lg shadow-primary/20 group">
-                            <span
-                                class="material-symbols-outlined text-lg group-active:-translate-x-1 group-active:scale-95 transition-transform"
-                                style="font-variation-settings:'FILL' 1; direction: ltr;">send</span>
-                        </button>
-                    </div>
+                    <!-- Right Button (Send) -->
+                    <button id="agent-send-btn" onclick="Agent.sendMessage()"
+                        class="autopilot-btn-right bg-gradient-primary">
+                        <span class="material-symbols-outlined"
+                            style="font-variation-settings:'FILL' 1; transform: scaleX(-1);">send</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -604,6 +586,21 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             <div id="classGrid" class="grid grid-cols-1 gap-5"></div>
         </div>
 
+        <!-- ═══ TAB 5: الإشعارات ═══ -->
+        <div id="tab-notifications" class="tab-panel">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-base font-black text-gray-800 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary"
+                        style="font-size:20px;font-variation-settings:'FILL' 1">notifications</span>
+                    إدارة الإشعارات
+                </h3>
+                <button onclick="showAddNotificationModal()"
+                    class="liquid-button liquid-button-prominent text-white px-4 py-2.5 rounded-xl text-xs font-black">+
+                    إرسال إشعار</button>
+            </div>
+            <div id="notificationsList" class="grid grid-cols-1 gap-4"></div>
+        </div>
+
     </div><!-- /tabs-wrapper -->
 
     <!-- ─── Bottom Navigation ─── -->
@@ -631,6 +628,10 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             <button class="nav-btn" onclick="switchTab('classes', 4)" data-idx="4">
                 <span class="material-symbols-outlined nav-icon">school</span>
                 <span class="nav-label">الطلاب</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('notifications', 5)" data-idx="5">
+                <span class="material-symbols-outlined nav-icon">notifications</span>
+                <span class="nav-label">الإشعارات</span>
             </button>
         </div>
     </nav>
@@ -708,7 +709,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                     <input type="text" id="sName" required class="w-full liquid-glass-input rounded-xl p-3.5 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">رقم الطالب الأكاديمي</label>
+                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">الرقم الوطني</label>
                     <input type="text" id="sId" required class="w-full liquid-glass-input rounded-xl p-3.5 text-sm">
                 </div>
                 <div id="sImagePreviewContainer" class="hidden mb-4 relative group">
@@ -744,6 +745,68 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             </form>
         </div>
 
+        <!-- Add/Edit Notification Modal -->
+        <div id="notificationModal" class="liquid-glass-modal w-full max-w-md p-7 rounded-[2rem] hidden">
+            <h2 id="notificationModalTitle" class="text-xl font-black text-gray-800 mb-6">إرسال إشعار جديد</h2>
+            <form onsubmit="handleSendNotification(event)" class="space-y-4 text-right">
+                <input type="hidden" id="nEditId">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">إرسال إلى</label>
+                    <select id="nTargetType" onchange="toggleNotificationTargetFields()" required
+                        class="w-full liquid-glass-input rounded-xl p-3.5 text-sm">
+                        <option value="all">الجميع</option>
+                        <option value="class">صف محدد</option>
+                        <option value="student">طالب محدد</option>
+                    </select>
+                </div>
+                <div id="nTargetClassContainer" class="hidden">
+                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">اختر الصف</label>
+                    <select id="nTargetClass" class="w-full liquid-glass-input rounded-xl p-3.5 text-sm"></select>
+                </div>
+                <div id="nTargetStudentContainer" class="hidden">
+                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">الرقم الوطني</label>
+                    <input type="text" id="nTargetStudent" class="w-full liquid-glass-input rounded-xl p-3.5 text-sm"
+                        placeholder="مثال: 2024001">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">عنوان الإشعار</label>
+                    <input type="text" id="nTitle" required class="w-full liquid-glass-input rounded-xl p-3.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">نص الإشعار</label>
+                    <textarea id="nMessage" required
+                        class="w-full liquid-glass-input rounded-xl p-3.5 text-sm h-24"></textarea>
+                </div>
+                <div id="nImagePreviewContainer" class="hidden mb-4 relative group">
+                    <img id="nImagePreview" src=""
+                        class="w-full h-32 rounded-2xl object-cover border-2 border-primary/20">
+                    <button type="button" onclick="clearNotificationImage()"
+                        class="absolute top-2 left-2 bg-red-500 text-white p-1 rounded-full shadow-lg">
+                        <span class="material-symbols-outlined text-xs">close</span>
+                    </button>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-1.5 mr-1">صورة إضافية (اختياري)</label>
+                    <div class="relative group">
+                        <input type="file" id="nImage" accept="image/*"
+                            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            onchange="previewNotificationImage(this)">
+                        <div
+                            class="liquid-glass-input rounded-xl p-3.5 flex items-center justify-between pointer-events-none">
+                            <span id="nImageName" class="text-gray-400 text-sm">اختر صورة...</span>
+                            <span class="material-symbols-outlined text-primary text-lg">image</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" id="nSubmitBtn"
+                        class="flex-1 liquid-button liquid-button-prominent text-white font-black py-3.5 rounded-xl">إرسال</button>
+                    <button type="button" onclick="closeModal()"
+                        class="flex-1 liquid-glass interactive py-3.5 rounded-xl font-bold text-gray-500">إلغاء</button>
+                </div>
+            </form>
+        </div>
+
     </div><!-- /modalOverlay -->
 
     <!-- Scripts -->
@@ -752,6 +815,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
     <script src="scripts/ui-utils.js"></script>
     <script src="scripts/file-utils.js"></script>
     <script src="scripts/gemini.js"></script>
+    <script src="scripts/face-detection.js"></script>
     <script src="scripts/agent.js"></script>
 
     <script>
@@ -760,8 +824,8 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         /* ══════════════════════════════════════
            TAB NAVIGATION SYSTEM
         ══════════════════════════════════════ */
-        const TAB_IDS = ['daily', 'reports', 'ai', 'teachers', 'classes'];
-        const TAB_TITLES = ['المعلومات اليومية', 'التقارير', 'المساعد الذكي', 'إدارة المعلمين', 'الطلاب والفصول'];
+        const TAB_IDS = ['daily', 'reports', 'ai', 'teachers', 'classes', 'notifications'];
+        const TAB_TITLES = ['المعلومات اليومية', 'التقارير', 'AutoPilot', 'إدارة المعلمين', 'الطلاب والفصول', 'إدارة الإشعارات'];
         let currentTabIdx = 0;
 
         function switchTab(tabId, idx) {
@@ -808,6 +872,13 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
 
             // Header subtitle
             document.getElementById('active-tab-title').textContent = TAB_TITLES[idx];
+            document.getElementById('active-tab-title').style.display = (tabId === 'ai') ? 'none' : 'block';
+
+            // AI specific header elements
+            const clearBtn = document.getElementById('agent-clear-btn');
+            const statusEl = document.getElementById('agent-status');
+            if (clearBtn) clearBtn.classList.toggle('hidden', tabId !== 'ai');
+            if (statusEl) statusEl.classList.toggle('hidden', tabId !== 'ai');
 
             currentTabIdx = idx;
         }
@@ -839,7 +910,8 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                 populateFilters(),
                 renderReports(),
                 renderTeachers(),
-                renderClasses()
+                renderClasses(),
+                renderNotifications()
             ]);
         };
 
@@ -889,7 +961,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             // Not submitted list
             const notList = document.getElementById('notSubmittedList');
             if (notSubmitted.length === 0) {
-                notList.innerHTML = `<p class="text-center py-2 text-xs font-bold" style="color:#4caf50">🎉 جميع الفصول سلّمت التقارير!</p>`;
+                notList.innerHTML = `<p class="text-center py-2 text-xs font-bold" style="color:var(--color-success)">🎉 جميع الفصول سلّمت التقارير!</p>`;
             } else {
                 notList.innerHTML = notSubmitted.map(c => `
                     <div class="class-chip class-chip-pending">
@@ -914,13 +986,13 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                     return `
                         <div class="class-chip class-chip-done">
                             <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(76,175,80,0.12)">
-                                <span class="material-symbols-outlined" style="font-size:15px;color:#4caf50">class</span>
+                                <span class="material-symbols-outlined" style="font-size:15px;color:var(--color-success)">class</span>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="font-bold text-gray-700 truncate">${c.name} - ${c.section}</p>
                                 ${teacher ? `<p class="text-[9px] text-gray-400">${teacher.name}</p>` : ''}
                             </div>
-                            <span class="font-black text-xs shrink-0" style="color:#4caf50">${present}/${cnt}</span>
+                            <span class="font-black text-xs shrink-0" style="color:var(--color-success)">${present}/${cnt}</span>
                         </div>`;
                 }).join('');
             }
@@ -936,7 +1008,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                     const p = r.details?.filter(d => d.status === 'present').length ?? 0;
                     const t2 = r.details?.length ?? 0;
                     const pct = t2 > 0 ? Math.round((p / t2) * 100) : 0;
-                    const pctColor = pct >= 75 ? '#4caf50' : '#f44336';
+                    const pctColor = pct >= 75 ? 'var(--color-success)' : '#f44336';
                     return `
                         <div class="liquid-glass liquid-glass-prominent rounded-2xl overflow-hidden cursor-pointer" onclick="showFullReport('${r.id}')">
                             <div class="report-img-wrap">
@@ -944,12 +1016,12 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                                 <div class="report-img-overlay"></div>
                                 <div class="absolute bottom-3 right-4 z-10">
                                     <p class="font-black text-sm text-white drop-shadow">${cls.name} - ${cls.section}</p>
-                                    <p class="text-[10px] font-bold" style="color:#ffa726">${teacher.name}</p>
+                                    <p class="text-[10px] font-bold" style="color:var(--color-primary)">${teacher.name}</p>
                                 </div>
                             </div>
                             <div class="p-3 flex items-center justify-between">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full" style="background:#ffa726"></div>
+                                    <div class="w-2 h-2 rounded-full" style="background:var(--color-primary)"></div>
                                     <span class="text-xs font-bold text-gray-600">${p} حاضر · ${t2 - p} غائب</span>
                                 </div>
                                 <span class="text-sm font-black" style="color:${pctColor}">${pct}%</span>
@@ -1013,7 +1085,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                         <div class="absolute inset-0" style="background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.5))"></div>
                         <div class="absolute bottom-4 right-4">
                             <h4 class="font-black text-base text-white drop-shadow">${cls.name}</h4>
-                            <p class="text-xs font-bold" style="color:#ffa726">${teacher.name} • ${r.date}</p>
+                            <p class="text-xs font-bold" style="color:var(--color-primary)">${teacher.name} • ${r.date}</p>
                         </div>
                     </div>
                     <div class="p-4 flex justify-between items-center bg-white/30">
@@ -1087,6 +1159,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                 <div class="liquid-glass-modal w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2rem] p-4 sm:p-7 space-y-5 liquid-glass-scrollbar text-right">
                     <div class="flex justify-between items-start">
                         <button onclick="document.getElementById('reportDetailModal').classList.add('hidden')" class="w-10 h-10 rounded-xl liquid-glass-icon icon-error interactive flex items-center justify-center font-black text-lg">×</button>
+
                         <div class="text-right">
                             <h2 class="text-xl font-black text-gray-800">${cls.name} - ${cls.section}</h2>
                             <p class="text-primary text-xs font-bold">${record.date} | بواسطة ${teacher.name}</p>
@@ -1116,7 +1189,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                     </div>
                     <div class="flex gap-3">
                         <button onclick="saveReportChanges()" class="flex-1 liquid-button liquid-button-prominent text-white font-black py-3.5 rounded-xl">حفظ التغييرات</button>
-                        <button onclick="document.getElementById('reportDetailModal').classList.add('hidden')" class="flex-1 liquid-glass interactive py-3.5 rounded-xl font-bold text-gray-500">إغلاق</button>
+                        <button onclick="document.getElementById('reportDetailModal').classList.add('hidden')" class="flex-1 liquid-glass interactive py-3.5 rounded-xl font-bold text-gray-500">إإغلاق</button>
                     </div>
                 </div>`;
 
@@ -1183,61 +1256,188 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         }
 
         /* ══════════════════════════════════════
-           CLASSES
+           CLASSES & STUDENTS HIERARCHY
         ══════════════════════════════════════ */
+        let studentTabState = {
+            view: 'classes', // 'classes', 'sections', 'students'
+            selectedClassName: '',
+            selectedClassId: ''
+        };
+
+        function setStudentView(view, name = '', id = '') {
+            studentTabState.view = view;
+            studentTabState.selectedClassName = name;
+            studentTabState.selectedClassId = id;
+            renderClasses();
+        }
+
         async function renderClasses() {
             const grid = document.getElementById('classGrid');
             UI.showSkeleton(grid, 'card', 2);
             const classes = await DB.getClasses();
 
-            grid.innerHTML = (await Promise.all(classes.map(async c => {
-                const students = await DB.getStudents(c.id);
+            if (studentTabState.view === 'classes') {
+                renderClassNamesView(grid, classes);
+            } else if (studentTabState.view === 'sections') {
+                renderSectionsView(grid, classes);
+            } else if (studentTabState.view === 'students') {
+                await renderStudentsView(grid, classes);
+            }
+        }
+
+        function renderClassNamesView(grid, classes) {
+            const uniqueNames = [...new Set(classes.map(c => c.name))];
+
+            grid.innerHTML = uniqueNames.map(name => {
+                const count = classes.filter(c => c.name === name).length;
+                const sections = classes.filter(c => c.name === name).map(c => c.section).join('، ');
                 return `
-                <div class="liquid-glass liquid-glass-prominent p-6 rounded-[2rem] relative">
-                    <div class="flex justify-between items-start mb-5">
+                <div class="liquid-glass liquid-glass-prominent p-6 rounded-[2rem] cursor-pointer hover:border-primary/50 transition-all" 
+                     onclick="setStudentView('sections', '${name}')">
+                    <div class="flex justify-between items-center">
                         <div>
-                            <h4 class="text-xl font-black text-gray-800">${c.name}</h4>
-                            <p class="text-primary text-xs font-bold uppercase tracking-wider mt-1">شعبة: <span class="text-gray-700">${c.section}</span> • <span class="text-gray-700">${students.length}</span> طلاب</p>
+                            <h4 class="text-xl font-black text-gray-800">${name}</h4>
+                            <p class="text-primary text-xs font-bold mt-1">${count} شعبة (${sections})</p>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="showEditClassModal('${c.id}')" class="liquid-glass-icon interactive w-9 h-9 rounded-xl text-primary">
+                        <span class="material-symbols-outlined text-primary">arrow_forward_ios</span>
+                    </div>
+                </div>`;
+            }).join('') + `
+            <button onclick="showAddClassModal()" class="border-2 border-dashed border-black/10 rounded-[2rem] flex flex-col items-center justify-center p-12 text-gray-400 hover:border-primary/50 hover:text-primary transition-all liquid-glass" style="min-height:160px">
+                <span class="material-symbols-outlined text-4xl mb-3">add</span>
+                <span class="font-black text-xs uppercase tracking-widest">إضافة فصل دراسي جديد</span>
+            </button>`;
+        }
+
+        function renderSectionsView(grid, classes) {
+            const sections = classes.filter(c => c.name === studentTabState.selectedClassName);
+
+            grid.innerHTML = `
+            <div class="col-span-full mb-2">
+                <button onclick="setStudentView('classes')" class="flex items-center gap-2 text-xs font-black text-gray-400 hover:text-primary transition-all">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span>
+                    العودة لجميع الصفوف
+                </button>
+                <h3 class="text-lg font-black text-gray-800 mt-2">${studentTabState.selectedClassName}</h3>
+            </div>
+            ` + sections.map(c => `
+                <div class="liquid-glass liquid-glass-prominent p-6 rounded-[2rem] cursor-pointer hover:border-primary/50 transition-all" 
+                     onclick="setStudentView('students', '${c.name}', '${c.id}')">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h4 class="text-xl font-black text-gray-800">شعبة: ${c.section}</h4>
+                            <p class="text-primary text-xs font-bold mt-1">عرض طلاب هذه الشعبة</p>
+                        </div>
+                        <span class="material-symbols-outlined text-primary">group</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function renderStudentsView(grid, classes) {
+            const classInfo = classes.find(c => c.id === studentTabState.selectedClassId);
+            if (!classInfo) { setStudentView('classes'); return; }
+
+            const students = await DB.getStudents(classInfo.id);
+
+            grid.innerHTML = `
+            <div class="col-span-full mb-2">
+                <button onclick="setStudentView('sections', '${classInfo.name}')" class="flex items-center gap-2 text-xs font-black text-gray-400 hover:text-primary transition-all">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span>
+                    العودة للشعب (${classInfo.name})
+                </button>
+            </div>
+            <div class="liquid-glass liquid-glass-prominent p-6 rounded-[2rem] relative">
+                <div class="flex justify-between items-start mb-5">
+                    <div>
+                        <h4 class="text-xl font-black text-gray-800">${classInfo.name}</h4>
+                        <p class="text-primary text-xs font-bold uppercase tracking-wider mt-1">شعبة: <span class="text-gray-700">${classInfo.section}</span> • <span class="text-gray-700">${students.length}</span> طلاب</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="showEditClassModal('${classInfo.id}')" class="liquid-glass-icon interactive w-9 h-9 rounded-xl text-primary">
+                            <span class="material-symbols-outlined" style="font-size:16px">edit</span>
+                        </button>
+                        <button onclick="deleteClass('${classInfo.id}', this)" class="liquid-glass-icon interactive icon-error w-9 h-9 rounded-xl text-error">
+                            <span class="material-symbols-outlined" style="font-size:16px">delete</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-3 mt-4">
+                    ${students.length === 0 ? '<div class="p-6 text-center text-gray-400 text-xs font-bold liquid-glass rounded-2xl">لا يوجد طلاب في هذا الفصل</div>' : ''}
+                    ${students.map(s => `
+                        <div class="liquid-glass rounded-xl p-3 flex items-center justify-between group/stud">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0" 
+                                     style="background: ${UI.getAvatarColor(s.id)}">
+                                    ${s.name ? s.name.trim().charAt(0) : '?'}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">${s.name}</p>
+                                    <p class="text-[10px] text-gray-500 font-mono">ID: ${s.academicId}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-1 opacity-0 group-hover/stud:opacity-100 transition-opacity">
+                                <button onclick='openStudentModal(${JSON.stringify(s).replace(/'/g, "&apos;")})' class="p-2 text-primary hover:bg-primary/10 rounded-lg">
+                                    <span class="material-symbols-outlined text-sm">edit</span>
+                                </button>
+                                <button onclick="deleteStudent('${s.id}', this)" class="p-2 text-red-400 hover:bg-red-50 rounded-lg">
+                                    <span class="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </div>
+                        </div>`).join('')}
+                </div>
+                <button onclick="showAddStudentModal('${classInfo.id}')" class="w-full mt-4 liquid-glass interactive font-black text-[10px] uppercase tracking-widest text-primary border border-primary/20 rounded-2xl py-3.5">
+                    <span class="flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-sm">person_add</span>
+                        إضافة طالب جديد
+                    </span>
+                </button>
+            </div>`;
+        }
+
+        /* ══════════════════════════════════════
+           NOTIFICATIONS
+        ══════════════════════════════════════ */
+        async function renderNotifications() {
+            const list = document.getElementById('notificationsList');
+            if (!list) return;
+            UI.showSkeleton(list, 'card', 2);
+            const notifications = await DB.getNotifications('all_admin');
+            notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            if (notifications.length === 0) {
+                list.innerHTML = '<div class="liquid-glass p-12 text-center text-gray-400 rounded-[2rem] text-sm font-bold">لا توجد إشعارات مرسلة</div>';
+                return;
+            }
+
+            list.innerHTML = notifications.map(n => `
+                <div class="liquid-glass liquid-glass-prominent p-5 rounded-[2rem] border border-black/5 flex flex-col sm:flex-row gap-5 items-start">
+                    ${n.image ? `
+                    <div class="w-full sm:w-32 h-32 rounded-2xl overflow-hidden shrink-0 border border-black/10">
+                        <img src="${n.image}" class="w-full h-full object-cover">
+                    </div>` : ''}
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-black text-gray-800 text-base">${n.title}</h4>
+                                <p class="text-[10px] text-primary font-black uppercase tracking-widest mt-0.5">
+                                    ${n.targetType === 'all' ? 'الجميع' : n.targetType === 'class' ? `الصف: ${n.targetId}` : `الطالب: ${n.targetId}`}
+                                </p>
+                            </div>
+                            <p class="text-[10px] font-bold text-gray-400">${new Date(n.timestamp).toLocaleDateString('ar-SA')} ${new Date(n.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <p class="text-sm text-gray-600 leading-relaxed mb-4">${n.message}</p>
+                        <div class="flex gap-2 justify-end">
+                            <button onclick="showEditNotificationModal('${n.id}')" class="w-9 h-9 rounded-xl flex items-center justify-center bg-orange-50 text-primary border border-orange-200 hover:bg-primary hover:text-white transition-all">
                                 <span class="material-symbols-outlined" style="font-size:16px">edit</span>
                             </button>
-                            <button onclick="deleteClass('${c.id}', this)" class="liquid-glass-icon interactive icon-error w-9 h-9 rounded-xl text-error">
+                            <button onclick="handleDeleteNotification('${n.id}')" class="w-9 h-9 rounded-xl flex items-center justify-center bg-red-50 text-error border border-red-200 hover:bg-error hover:text-white transition-all">
                                 <span class="material-symbols-outlined" style="font-size:16px">delete</span>
                             </button>
                         </div>
                     </div>
-                    <div class="space-y-2 max-h-52 overflow-y-auto liquid-glass-scrollbar">
-                        ${students.length === 0 ? '<div class="p-6 text-center text-gray-400 text-xs font-bold liquid-glass rounded-2xl">لا يوجد طلاب في هذا الفصل</div>' : ''}
-                        ${students.map(s => `
-                            <div class="flex justify-between items-center py-2 border-b border-black/[0.04] group/stud">
-                                <div class="flex items-center gap-3">
-                                    <img src="${s.avatar || 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%23ccc\'%3E%3Cpath d=\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\'/%3E%3C/svg%3E'}" alt="Student" class="w-9 h-9 rounded-xl object-cover border border-black/10">
-                                    <span class="text-gray-700 font-bold text-sm">${s.name}</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <button onclick="showEditStudentModal('${s.id}')" class="w-8 h-8 rounded-xl liquid-glass interactive flex items-center justify-center text-primary">
-                                        <span class="material-symbols-outlined" style="font-size:14px">edit</span>
-                                    </button>
-                                    <button onclick="deleteStudent('${s.id}', this)" class="w-8 h-8 rounded-xl liquid-glass interactive flex items-center justify-center text-error">
-                                        <span class="material-symbols-outlined" style="font-size:14px">person_remove</span>
-                                    </button>
-                                </div>
-                            </div>`).join('')}
-                    </div>
-                    <button onclick="showAddStudentModal('${c.id}')" class="w-full mt-4 liquid-glass interactive font-black text-[10px] uppercase tracking-widest text-primary border border-primary/20 rounded-2xl py-3.5">
-                        <span class="flex items-center justify-center gap-2">
-                            <span class="material-symbols-outlined text-sm">person_add</span>
-                            إضافة طالب جديد
-                        </span>
-                    </button>
-                </div>`;
-            }))).join('') + `
-                <button onclick="showAddClassModal()" class="border-2 border-dashed border-black/10 rounded-[2rem] flex flex-col items-center justify-center p-12 text-gray-400 hover:border-primary/50 hover:text-primary transition-all liquid-glass" style="min-height:160px">
-                    <span class="material-symbols-outlined text-4xl mb-3">add</span>
-                    <span class="font-black text-xs uppercase tracking-widest">إضافة فصل دراسي جديد</span>
-                </button>`;
+                </div>
+            `).join('');
         }
 
         /* ══════════════════════════════════════
@@ -1249,8 +1449,9 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         }
         function closeModal() {
             document.getElementById('modalOverlay').classList.add('hidden');
-            ['teacherModal', 'classModal', 'studentModal'].forEach(id => {
-                document.getElementById(id).classList.add('hidden');
+            ['teacherModal', 'classModal', 'studentModal', 'notificationModal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
             });
         }
         function showAddTeacherModal() {
@@ -1323,6 +1524,81 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             reader.readAsDataURL(file);
         }
 
+        // Notification Modal Controls
+        async function showAddNotificationModal() {
+            document.getElementById('notificationModalTitle').innerText = 'إرسال إشعار جديد';
+            document.getElementById('nEditId').value = '';
+            document.getElementById('notificationModal').querySelector('form').reset();
+            document.getElementById('nTargetClassContainer').classList.add('hidden');
+            document.getElementById('nTargetStudentContainer').classList.add('hidden');
+            document.getElementById('nImagePreviewContainer').classList.add('hidden');
+            document.getElementById('nImageName').innerText = 'اختر صورة...';
+            document.getElementById('nSubmitBtn').innerText = 'إرسال';
+
+            // Populate classes dropdown
+            const classes = await DB.getClasses();
+            const classSelect = document.getElementById('nTargetClass');
+            classSelect.innerHTML = classes.map(c => `<option value="${c.id}">${c.name} - ${c.section}</option>`).join('');
+
+            openModal('notificationModal');
+        }
+
+        async function showEditNotificationModal(id) {
+            const notifications = await DB.getNotifications('all_admin');
+            const n = notifications.find(x => x.id === id);
+            if (!n) return;
+
+            document.getElementById('notificationModalTitle').innerText = 'تعديل الإشعار';
+            document.getElementById('nEditId').value = id;
+            document.getElementById('nTargetType').value = n.targetType;
+            document.getElementById('nTitle').value = n.title;
+            document.getElementById('nMessage').value = n.message;
+            document.getElementById('nSubmitBtn').innerText = 'تحديث';
+
+            toggleNotificationTargetFields();
+            if (n.targetType === 'class') {
+                const classes = await DB.getClasses();
+                const classSelect = document.getElementById('nTargetClass');
+                classSelect.innerHTML = classes.map(c => `<option value="${c.id}">${c.name} - ${c.section}</option>`).join('');
+                document.getElementById('nTargetClass').value = n.targetId;
+            } else if (n.targetType === 'student') {
+                document.getElementById('nTargetStudent').value = n.targetId;
+            }
+
+            const preview = document.getElementById('nImagePreview');
+            const container = document.getElementById('nImagePreviewContainer');
+            if (n.image) {
+                preview.src = n.image;
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+
+            openModal('notificationModal');
+        }
+
+        function toggleNotificationTargetFields() {
+            const type = document.getElementById('nTargetType').value;
+            document.getElementById('nTargetClassContainer').classList.toggle('hidden', type !== 'class');
+            document.getElementById('nTargetStudentContainer').classList.toggle('hidden', type !== 'student');
+        }
+
+        async function previewNotificationImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+            document.getElementById('nImageName').innerText = file.name;
+            const compressed = await UI.compressImage(file, 600); // 600px max width for notifications
+            document.getElementById('nImagePreview').src = compressed;
+            document.getElementById('nImagePreviewContainer').classList.remove('hidden');
+        }
+
+        function clearNotificationImage() {
+            document.getElementById('nImage').value = '';
+            document.getElementById('nImageName').innerText = 'اختر صورة...';
+            document.getElementById('nImagePreview').src = '';
+            document.getElementById('nImagePreviewContainer').classList.add('hidden');
+        }
+
         document.getElementById('modalOverlay').addEventListener('click', function (e) {
             if (e.target === this) closeModal();
         });
@@ -1356,9 +1632,23 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             e.preventDefault();
             const editId = document.getElementById('cEditId').value;
             const data = {
-                name: document.getElementById('cName').value,
-                section: document.getElementById('cSection').value
+                name: document.getElementById('cName').value.trim(),
+                section: document.getElementById('cSection').value.trim()
             };
+
+            // Validation: Unique Class Name + Section
+            const allClasses = await DB.getClasses();
+            const isDuplicate = allClasses.some(c =>
+                c.id !== editId &&
+                c.name.trim() === data.name &&
+                c.section.trim() === data.section
+            );
+
+            if (isDuplicate) {
+                UI.toast('هذا الفصل والشعبة موجودان بالفعل', 'error');
+                return;
+            }
+
             if (editId) {
                 await DB.updateClass(editId, data);
                 UI.toast('تم تحديث بيانات الفصل');
@@ -1380,47 +1670,76 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             const fileInput = document.getElementById('sImage');
 
             if (!editId && (!fileInput.files || !fileInput.files[0])) {
-                UI.toast('يرجى اختيار صورة للطالب أولاً', 'error');
+                UI.toast('يرجى اختيار صورة للطالب لاستخراج البصمة الرقمية', 'error');
                 return;
             }
 
             const origText = submitBtn.innerHTML;
             submitBtn.disabled = true;
-            submitBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">refresh</span> جاري الحفظ...`;
+            submitBtn.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">refresh</span> جاري استخراج البصمة...`;
 
-            const doSave = async (avatarData) => {
+            try {
+                let descriptor = null;
+                
+                // If a new image is selected, compute the descriptor
+                if (fileInput.files && fileInput.files[0]) {
+                    const img = await new Promise((resolve) => {
+                        const i = new Image();
+                        i.onload = () => resolve(i);
+                        i.src = URL.createObjectURL(fileInput.files[0]);
+                    });
+                    
+                    descriptor = await FaceDetection.getDescriptorFromImage(img);
+                    
+                    if (!descriptor) {
+                        UI.toast('لم يتم العثور على وجه واضح في الصورة. يرجى محاولة صورة أخرى.', 'error');
+                        return;
+                    }
+                }
+
                 const studentData = {
-                    name: document.getElementById('sName').value,
+                    name: document.getElementById('sName').value.trim(),
                     academicId: document.getElementById('sId').value,
                     classId: document.getElementById('sClassId').value
                 };
-                if (avatarData) studentData.avatar = avatarData;
-                try {
-                    if (editId) { await DB.updateStudent(editId, studentData); UI.toast('تم تحديث بيانات الطالب'); }
-                    else { await DB.addStudent(studentData); UI.toast('تم إضافة الطالب'); updateStat('statStudents', 1); }
-                    closeModal();
-                    renderClasses();
-                    form.reset();
-                    document.getElementById('sImagePreviewContainer').classList.add('hidden');
-                    document.getElementById('sImageName').innerText = 'اختر صورة الطالب...';
-                } catch (err) {
-                    UI.toast('حدث خطأ أثناء الحفظ', 'error');
-                    console.error(err);
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = origText;
-                }
-            };
 
-            if (fileInput.files && fileInput.files[0]) {
-                const img = new Image();
-                img.onload = function () {
-                    const compressed = UI.compressImage(img, 0.7, 1024);
-                    doSave('data:image/jpeg;base64,' + compressed);
-                };
-                img.src = URL.createObjectURL(fileInput.files[0]);
-            } else {
-                await doSave(null);
+                // Duplicate Name Check
+                const existingStudents = await DB.getStudents(studentData.classId);
+                const isDuplicate = existingStudents.some(s =>
+                    s.name.trim() === studentData.name && s.id !== editId
+                );
+
+                if (isDuplicate) {
+                    UI.toast('هذا الطالب موجود بالفعل في هذه الشعبة', 'error');
+                    return;
+                }
+
+                // Store descriptor as the avatar (it's the digital fingerprint)
+                if (descriptor) {
+                    studentData.descriptor = JSON.stringify(descriptor);
+                    studentData.avatar = null; // Clear old avatar if any
+                }
+
+                if (editId) { 
+                    await DB.updateStudent(editId, studentData); 
+                    UI.toast('تم تحديث بيانات الطالب والبصمة'); 
+                } else { 
+                    await DB.addStudent(studentData); 
+                    UI.toast('تم إضافة الطالب وحفظ البصمة الرقمية'); 
+                    updateStat('statStudents', 1); 
+                }
+                
+                closeModal();
+                renderClasses();
+                form.reset();
+                document.getElementById('sImagePreviewContainer').classList.add('hidden');
+                document.getElementById('sImageName').innerText = 'اختر صورة الطالب...';
+            } catch (err) {
+                UI.toast('حدث خطأ أثناء المعالجة', 'error');
+                console.error(err);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = origText;
             }
         }
 
@@ -1441,9 +1760,62 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                     const students = await DB.getStudents(id);
                     for (let s of students) await DB.deleteStudent(s.id);
                     await DB.deleteClass(id);
+                    setStudentView('classes'); // Reset to class names list
                 };
                 await UI.optimistic(card, action(), 'فشل حذف الفصل');
                 updateStat('statClasses', -1);
+            }
+        }
+
+        async function handleSendNotification(e) {
+            e.preventDefault();
+            const editId = document.getElementById('nEditId').value;
+            const targetType = document.getElementById('nTargetType').value;
+            let targetId = 'all';
+
+            if (targetType === 'class') targetId = document.getElementById('nTargetClass').value;
+            else if (targetType === 'student') targetId = document.getElementById('nTargetStudent').value;
+
+            const data = {
+                title: document.getElementById('nTitle').value,
+                message: document.getElementById('nMessage').value,
+                image: document.getElementById('nImagePreviewContainer').classList.contains('hidden') ? null : document.getElementById('nImagePreview').src,
+                targetType,
+                targetId,
+                timestamp: new Date().toISOString()
+            };
+
+            UI.setLoading(true);
+            try {
+                if (editId) {
+                    await DB.updateNotification(editId, data);
+                    UI.toast('تم تحديث الإشعار بنجاح');
+                } else {
+                    await DB.addNotification(data);
+                    UI.toast('تم إرسال الإشعار بنجاح');
+                }
+                closeModal();
+                renderNotifications();
+            } catch (err) {
+                console.error(err);
+                UI.toast('فشل في معالجة الإشعار', 'error');
+            } finally {
+                UI.setLoading(false);
+            }
+        }
+
+        async function handleDeleteNotification(id) {
+            if (await UI.confirm('حذف الإشعار', 'هل أنت متأكد من حذف هذا الإشعار؟ لن يراه الطلاب بعد الآن.')) {
+                UI.setLoading(true);
+                try {
+                    await DB.deleteNotification(id);
+                    UI.toast('تم حذف الإشعار');
+                    renderNotifications();
+                } catch (err) {
+                    UI.toast('فشل حذف الإشعار', 'error');
+                } finally {
+                    UI.setLoading(false);
+                }
             }
         }
         async function deleteStudent(id, el) {
@@ -1482,13 +1854,13 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         Agent.renderToggle = function () {
             const input = document.getElementById('agent-input');
             const suggestions = document.getElementById('agent-suggestions');
-            
+
             // Auto-resize textarea logic
             if (input) {
-                input.addEventListener('input', function() {
+                input.addEventListener('input', function () {
                     this.style.height = 'auto';
                     this.style.height = Math.min(this.scrollHeight, 128) + 'px';
-                    
+
                     // Suggestions logic: hide if anything typed
                     if (suggestions) {
                         if (this.value.trim().length > 0) {
@@ -1499,7 +1871,7 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                         }
                     }
                 });
-                
+
                 input.addEventListener('keypress', e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -1509,13 +1881,13 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             }
 
             document.getElementById('agent-clear-btn')?.addEventListener('click', () => this.clearChat());
-            
+
             document.querySelectorAll('.suggestion-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    if (input) { 
-                        input.value = btn.textContent.trim(); 
+                    if (input) {
+                        input.value = btn.textContent.trim();
                         input.style.height = 'auto';
-                        this.sendMessage(); 
+                        this.sendMessage();
                     }
                 });
             });
@@ -1525,18 +1897,18 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         // Disable the floating toggle (not needed with tab nav)
         Agent.toggleChat = function () { };
 
-        // Override clearChat to match embedded light elegant style
+        /* Override clearChat for AutoPilot */
         Agent.clearChat = function () {
             const messages = document.getElementById('agent-messages');
             messages.innerHTML = `
-                <div class="flex flex-col items-end mb-4 mx-2 animate-fade-in">
-                    <span class="text-[9px] font-black text-gray-400 mb-1 px-1 uppercase tracking-tight">وكيل الذكاء الاصطناعي</span>
-                    <div class="agent-msg-ai bg-white border border-primary/15 shadow-sm text-gray-800 p-3.5 rounded-2xl rounded-tl-sm text-xs font-semibold leading-relaxed relative" style="max-width:92%">
+                <div class="flex flex-col items-start animate-fade-in mx-2">
+                    <span class="text-[9px] font-black text-gray-400 mb-1 px-1 uppercase tracking-tight">AutoPilot</span>
+                    <div class="agent-msg-ai bg-white border border-gray-100 shadow-sm text-gray-800 p-4 rounded-2xl rounded-tr-sm text-sm font-medium leading-relaxed" style="max-width:90%">
                         تم مسح المحادثة ✨<br>كيف يمكنني مساعدتك الآن؟
                     </div>
                 </div>`;
             this.chatHistory = [];
-            
+
             // Show suggestions again
             const suggestions = document.getElementById('agent-suggestions');
             if (suggestions) suggestions.style.display = 'flex';
@@ -1546,28 +1918,37 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
             });
         };
 
-        // Override addMessage to clean design and native shadows
-        const _origAdd = Agent.addMessage.bind(Agent);
+        // Override addMessage to match AutoPilot design with full Markdown support
         Agent.addMessage = function (text, role) {
             const messages = document.getElementById('agent-messages');
             const isUser = role === 'user';
             const div = document.createElement('div');
             // In RTL: items-start = Right (AI), items-end = Left (User)
-            // Layout: User on Left (items-end), AI on Right (items-start)
             div.className = `flex flex-col ${isUser ? 'items-end' : 'items-start'} mb-4 mx-2 animate-fade-in`;
 
             const currentUser = Auth.getCurrentUser();
-            const labelText = isUser ? (currentUser ? currentUser.name : 'مدير النظام') : 'وكيل الذكاء الاصطناعي';
+            const labelText = isUser ? (currentUser ? currentUser.name : 'مدير النظام') : 'AutoPilot';
 
             const displayText = text.split('|||COMMAND|||')[0].trim();
-            const formatted = displayText
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
+
+            let formattedContent;
+            if (!isUser && typeof marked !== 'undefined') {
+                marked.setOptions({ breaks: true, gfm: true, pedantic: false });
+                formattedContent = marked.parse(displayText || '&nbsp;');
+            } else {
+                formattedContent = displayText
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>') || '&nbsp;';
+            }
+
+            const bubbleClass = isUser
+                ? 'bg-gradient-to-tr from-[#ffa726] to-[#fb8c00] text-white shadow-md'
+                : 'bg-white border border-gray-100 text-gray-800 shadow-sm agent-markdown';
 
             div.innerHTML = `
-                <span class="text-[9px] font-black text-gray-400 mb-1 px-1 uppercase tracking-tight">${labelText}</span>
-                <div class="${isUser ? 'agent-msg-user text-white' : 'agent-msg-ai bg-white border border-primary/15 text-gray-800'} p-3.5 rounded-2xl ${isUser ? 'rounded-tl-sm' : 'rounded-tr-sm'} text-xs font-semibold leading-relaxed relative" style="max-width:92%;">
-                    ${formatted || '&nbsp;'}
+                <span class="text-[9px] font-black ${isUser ? 'text-gray-400' : 'text-primary/70'} mb-1 px-1 uppercase tracking-tight">${labelText}</span>
+                <div class="${bubbleClass} p-4 rounded-2xl ${isUser ? 'rounded-tl-sm' : 'rounded-tr-sm'} text-sm font-medium leading-relaxed relative" style="max-width:90%;">
+                    ${formattedContent}
                 </div>`;
 
             messages.appendChild(div);
@@ -1590,11 +1971,26 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
         ══════════════════════════════════════ */
         async function init() {
             try {
-                UI.setLoading(true);
+                // Show Splash
+                const splash = document.getElementById('splashScreen');
+                const progress = document.getElementById('splashProgress');
+                const status = document.getElementById('splashStatus');
+
                 const user = Auth.checkAuth('admin');
                 if (!user) return;
 
+                // 1. Connect DB
+                status.innerText = "جاري الاتصال بقاعدة البيانات...";
+                progress.style.width = "30%";
                 await DB.init();
+
+                // 2. Load Models Early
+                status.innerText = "جاري تهيئة محرك التعرف على الوجوه...";
+                progress.style.width = "60%";
+                await FaceDetection.init();
+
+                status.innerText = "جاري تحميل البيانات...";
+                progress.style.width = "80%";
                 await Agent.init();
 
                 await Promise.all([
@@ -1602,19 +1998,32 @@ file:///G:/coding/%D8%AD%D8%B6%D9%88%D8%B1%20%D9%88%D8%BA%D9%8A%D8%A7%D8%A8/admi
                     populateFilters(),
                     renderReports(),
                     renderTeachers(),
-                    renderClasses()
+                    renderClasses(),
+                    renderNotifications()
                 ]);
 
-                UI.setLoading(false);
+                progress.style.width = "100%";
+                status.innerText = "جاهز!";
+
+                // Hide Splash
+                setTimeout(() => {
+                    if (splash) {
+                        splash.style.opacity = '0';
+                        splash.style.pointerEvents = 'none';
+                        setTimeout(() => splash.remove(), 700);
+                    }
+                }, 500);
 
                 // Init nav indicator after layout settles
                 setTimeout(() => initNavIndicator(), 150);
                 window.addEventListener('resize', () => moveNavIndicator(currentTabIdx));
 
             } catch (e) {
-                UI.setLoading(false);
-                UI.toast('خطأ في تحميل البيانات', 'error');
                 console.error('Init error:', e);
+                UI.toast('خطأ في تحميل البيانات', 'error');
+                if (document.getElementById('splashStatus')) {
+                    document.getElementById('splashStatus').innerText = "فشل التحميل، يرجى التحديث";
+                }
             }
         }
 

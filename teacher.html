@@ -5,14 +5,14 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#faf7f2">
+    <meta name="theme-color" content="#faf7f2"> <!-- Using var(--color-cream) -->
     <title>تحضير الصف | المعلم</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <link href="styles/liquid-glass.css" rel="stylesheet" />
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,12 +23,12 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#ffa726",
+                        "primary": "#ffab31",
                         "on-primary": "#faf7f2",
                         "background": "#faf7f2",
                         "surface": "#ffffff",
                         "surface-bright": "#fffefb",
-                        "tertiary": "#ffcc80",
+                        "tertiary": "#ebf1f6",
                         "on-surface-variant": "#666050"
                     },
                     fontFamily: {
@@ -40,7 +40,7 @@
     </script>
     <style>
         body {
-            background-color: #faf7f2;
+            background-color: var(--color-cream);
             min-height: 100vh;
         }
 
@@ -93,14 +93,14 @@
         .highlight-present {
             /* 0 is right side in RTL */
             transform: translateX(0);
-            background: #ffa726;
+            background: var(--color-primary);
             box-shadow: none;
         }
 
         .highlight-absent {
             /* Move left by 100% in RTL */
             transform: translateX(-100%);
-            background: #ffcc80;
+            background: var(--color-primary);
             box-shadow: none;
         }
 
@@ -122,6 +122,21 @@
         <div class="orb orb-primary"></div>
         <div class="orb orb-tertiary"></div>
         <div class="orb orb-accent"></div>
+    </div>
+
+    <!-- Splash Loading Screen -->
+    <div id="splashScreen" class="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center transition-all duration-700">
+        <div class="relative mb-8">
+            <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-[2rem] liquid-glass flex items-center justify-center animate-pulse">
+                <span class="material-symbols-outlined text-4xl sm:text-6xl text-primary" style="font-variation-settings: 'FILL' 1;">face_retouching_natural</span>
+            </div>
+            <div class="absolute -inset-4 rounded-[2.5rem] border-2 border-primary/20 animate-ping"></div>
+        </div>
+        <h2 class="text-2xl font-black refractive-text mb-4">جاري تهيئة النظام الذكي</h2>
+        <div class="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden mb-4">
+            <div id="splashProgress" class="h-full bg-primary transition-all duration-500 w-10"></div>
+        </div>
+        <p id="splashStatus" class="text-gray-500 text-sm font-medium animate-pulse text-center px-6">جاري تحميل ملامح الوجوه وحفظها على الهاتف...</p>
     </div>
 
     <!-- Navigation -->
@@ -167,8 +182,8 @@
 
                 <div onclick="openQrModal()"
                     class="liquid-glass liquid-glass-interactive liquid-glass-tint-tertiary rounded-xl p-4 sm:p-6 flex flex-row sm:flex-col items-center justify-center sm:justify-center h-full gap-4 sm:gap-0">
-                    <div class="liquid-glass-icon icon-error w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:mb-4 shrink-0">
-                        <span class="material-symbols-outlined text-tertiary text-xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+                    <div class="liquid-glass-icon icon-primary w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:mb-4 shrink-0">
+                        <span class="material-symbols-outlined text-primary text-xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
                     </div>
                     <div class="sm:text-center text-right">
                         <h2 class="text-base sm:text-lg font-bold text-gray-800 mb-0.5 sm:mb-1 leading-tight">التحضير بـ QR</h2>
@@ -188,9 +203,9 @@
                 </div>
                 <div class="liquid-glass liquid-glass-tint-tertiary rounded-xl p-4 sm:p-6 flex flex-col items-center justify-center space-y-1 sm:space-y-2">
                     <span class="text-gray-600 text-[10px] sm:text-sm font-medium">الحاضرين</span>
-                    <span id="presentCount" class="text-2xl sm:text-4xl font-extrabold text-tertiary">0</span>
+                    <span id="presentCount" class="text-2xl sm:text-4xl font-extrabold text-primary">0</span>
                     <div class="liquid-glass-progress min-w-[30px] w-1/3">
-                        <div id="presentProgress" class="liquid-glass-progress-bar w-0" style="background: #ff7162;"></div>
+                        <div id="presentProgress" class="liquid-glass-progress-bar w-0"></div>
                     </div>
                 </div>
             </section>
@@ -304,12 +319,7 @@
     <script src="scripts/gemini.js"></script>
     <script src="scripts/face-detection.js"></script>
     
-    <!-- MediaPipe Helper -->
-    <script type="module">
-        import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-        window.FaceDetector = FaceDetector;
-        window.FilesetResolver = FilesetResolver;
-    </script>
+    <!-- Removed MediaPipe Helper -->
     <script>
         let user;
         let currentClass = null;
@@ -317,23 +327,59 @@
         let attendance = {};
 
         async function init() {
+            const splash = document.getElementById('splashScreen');
+            const progress = document.getElementById('splashProgress');
+            const status = document.getElementById('splashStatus');
+
             try {
-                UI.setLoading(true);
+                const startTime = performance.now();
+                const logTime = (msg) => {
+                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                    console.log(`[INIT LOG] ${elapsed}s: ${msg}`);
+                    status.innerText = msg;
+                };
+
                 user = Auth.checkAuth('teacher');
                 if (!user) return;
                 document.getElementById('teacherName').innerText = `أهلاً، ${user.name}`;
 
+                // 1. Initialize DB
+                logTime("جاري الاتصال بقاعدة البيانات...");
+                progress.style.width = "30%";
                 await DB.init();
+
+                // 2. Initialize Models
+                logTime("جاري تحميل محرك الذكاء الاصطناعي...");
+                progress.style.width = "50%";
+                await FaceDetection.init(); 
+                
+                // 3. Warm up the engine
+                logTime("جاري تهيئة محرك التعرف وتجهيز الذاكرة...");
+                progress.style.width = "80%";
+                await FaceDetection.warmUp();
+                
+                progress.style.width = "100%";
+                logTime("النظام جاهز تماماً!");
 
                 if (!currentClass) {
                     await renderClassSelector();
                 } else {
                     renderAttendanceView();
                 }
-                UI.setLoading(false);
+
+                logTime("اكتمل التحميل بنجاح");
+
+                // Hide Splash with delay for smooth transition
+                setTimeout(() => {
+                    splash.style.opacity = '0';
+                    splash.style.pointerEvents = 'none';
+                    setTimeout(() => splash.remove(), 700);
+                }, 500);
+
             } catch (e) {
-                UI.setLoading(false);
+                console.error(e);
                 UI.toast('حدث خطأ أثناء تحميل البيانات', 'error');
+                document.getElementById('splashStatus').innerText = "فشل التحميل، يرجى إعادة المحاولة";
             }
         }
 
@@ -410,10 +456,13 @@
             list.innerHTML = students.map(s => `
                 <div class="liquid-glass rounded-[1.25rem] p-3 sm:p-4 flex items-center justify-between transition-all gap-2" id="row-${s.id}">
                     <div class="flex items-center gap-2 sm:gap-4 min-w-0">
-                        <img class="w-10 h-10 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-primary/20 shrink-0" src="${s.avatar}">
+                        <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg sm:text-2xl shrink-0" 
+                             style="background: ${UI.getAvatarColor(s.id)}">
+                            ${s.name ? s.name.trim().charAt(0) : '?'}
+                        </div>
                         <div class="min-w-0">
                             <h4 class="font-bold text-gray-800 text-sm sm:text-base truncate">${s.name}</h4>
-                            <p class="text-gray-500 text-[10px] font-mono truncate">ID: ${s.id}</p>
+                            <p class="text-gray-500 text-[10px] font-mono truncate">ID: ${s.academicId || s.id}</p>
                         </div>
                     </div>
                     <div class="segmented-control shrink-0 scale-90 sm:scale-100 origin-left sm:origin-center">
@@ -488,38 +537,40 @@
                 html5QrcodeScanner = new Html5Qrcode("qr-reader");
             }
 
-            try {
-                await html5QrcodeScanner.start(
-                    { facingMode: currentFacingMode },
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0
-                    },
-                    onScanSuccess,
-                    (errorMessage) => { }
-                );
-
-                // Hybrid Mode: Start Face Detection on the same video element
-                const waitForVideo = (video) => {
-                    return new Promise((resolve) => {
-                        if (video.videoWidth > 0) resolve();
-                        else video.onloadedmetadata = () => resolve();
-                    });
-                };
-
-                const qrVideo = document.querySelector('#qr-reader video');
-                if (qrVideo) {
-                    await waitForVideo(qrVideo);
-                    const canvasHybrid = document.getElementById('canvasHybrid');
-                    await FaceDetection.init(qrVideo, canvasHybrid);
-                    FaceDetection.onCapture = () => captureImageAi(true); 
-                    FaceDetection.start();
-                }
-            } catch (err) {
+            // Start QR Scanner (Don't await to keep UI responsive)
+            html5QrcodeScanner.start(
+                { facingMode: currentFacingMode },
+                {
+                    fps: 15,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0,
+                    // Use a lower resolution for faster startup on i3
+                    videoConstraints: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                },
+                onScanSuccess,
+                (errorMessage) => { }
+            ).then(() => {
+                // Once QR is up, try to attach FaceDetection
+                const checkVideo = setInterval(() => {
+                    const qrVideo = document.querySelector('#qr-reader video');
+                    if (qrVideo && qrVideo.readyState >= 2) {
+                        clearInterval(checkVideo);
+                        const canvasHybrid = document.getElementById('canvasHybrid');
+                        // Use setElements instead of init to skip model checks
+                        FaceDetection.setElements(qrVideo, canvasHybrid);
+                        FaceDetection.onCapture = (descriptor) => handleCapturedDescriptor(descriptor, true); 
+                        FaceDetection.start(true, true); // Tiny model, auto-lock
+                    }
+                }, 100);
+                // Safety timeout
+                setTimeout(() => clearInterval(checkVideo), 5000);
+            }).catch(err => {
                 console.error("QR Scanner Start Error: ", err);
-                await UI.alert('تعذر الوصول للكاميرا', 'لا يمكن فتح الكاميرا لمسح الرمز حالياً، يرجى التأكد من صلاحيات المتصفح.');
-            }
+                UI.alert('تعذر الوصول للكاميرا', 'لا يمكن فتح الكاميرا لمسح الرمز حالياً.');
+            });
         }
 
         function stopQrScanner() {
@@ -606,21 +657,23 @@
             try {
                 streamAi = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
                         facingMode: 'environment'
                     }
                 });
                 videoAi.srcObject = streamAi;
                 videoAi.play();
                 
-                // AI Modal is now MANUAL - No auto FaceDetection here as per request
-                FaceDetection.stop(); 
+                // Start FaceDetection for Manual Mode with SSD model
+                const canvasAi = document.getElementById('canvasAi');
+                await FaceDetection.init(videoAi, canvasAi);
+                FaceDetection.onCapture = (descriptor) => handleCapturedDescriptor(descriptor, false);
+                FaceDetection.start(false, false); // SSD model, Manual Mode (autoLock = false)
                 
-                document.getElementById('aiCameraText').innerText = 'التقط صورة للتحليل والتعرف على الطلاب';
+                document.getElementById('aiCameraText').innerText = 'وجه الكاميرا واضغط على الزر عندما يكون الوجه داخل الدائرة';
                 const btn = document.getElementById('captureBtn');
-                btn.disabled = false;
-                btn.innerHTML = `<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span> التقاط صورة للتحليل`;
+                btn.classList.remove('hidden'); // Keep visible for manual control
             } catch (err) {
                 await UI.alert('خطأ في الكاميرا', 'تعذر الوصول للكاميرا الخاصة بالذكاء الاصطناعي، يرجى التأكد من أن الكاميرا غير مستخدمة في تطبيق آخر.');
             }
@@ -634,83 +687,43 @@
             }
         }
 
-        async function captureImageAi(isAuto = false) {
-            let activeVideo = videoAi;
-            let activeCanvas = canvasAi;
-
-            if (isAuto) {
-                // In Hybrid mode, use the QR video and hybrid canvas
-                activeVideo = document.querySelector('#qr-reader video') || videoAi;
-                activeCanvas = document.getElementById('canvasHybrid');
-                
-                // Flash effect for auto capture
-                activeCanvas.classList.add('brightness-[3]');
-                setTimeout(() => activeCanvas.classList.remove('brightness-[3]'), 150);
-            } else {
-                if (!streamAi) return;
-            }
-
-            const context = activeCanvas.getContext('2d');
-            activeCanvas.width = activeVideo.videoWidth;
-            activeCanvas.height = activeVideo.videoHeight;
-            context.drawImage(activeVideo, 0, 0);
-
-            const btn = document.getElementById('captureBtn');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = `<span class="material-symbols-outlined animate-spin">refresh</span> جاري التحليل...`;
-            }
-
-            UI.toast('جاري معالجة الصورة...', 'info');
-            if (document.getElementById('aiCameraText')) {
-                document.getElementById('aiCameraText').innerText = 'يتم معالجة الصورة لاستخراج الحضور...';
-            }
-
-
-            const imageData = UI.compressImage(activeCanvas, 0.7, 1280);
-
-            try {
-                UI.toast('جاري إرسال الصورة للتحليل...', 'info');
-                // Use Flash Lite for Auto/Hybrid (single face focus) and Pro for Manual Group Photo
-                const modelToUse = isAuto ? Gemini.MODEL_FLASH_LITE : Gemini.MODEL_PRO;
-                const result = await Gemini.scanAttendance(imageData, students, modelToUse);
-
-                if (result.reasoning) {
-                    console.log("AI Reasoning:", result.reasoning);
-                }
-
-                if (result.present_indices && Array.isArray(result.present_indices)) {
-                    UI.toast('تم التعرف على الطلاب بنجاح', 'success');
-                    result.present_indices.forEach(idx => {
-                        const studentIndex = idx - 1;
-                        if (students[studentIndex]) {
-                            attendance[students[studentIndex].id] = 'present';
-                        }
-                    });
-
-                    const count = result.present_indices.length;
-                    UI.toast(`تم التعرف على ${count} طالب/ـة بناءً على تحليل الملامح.`, 'success');
-                } else if (result.present_students) {
-                    result.present_students.forEach(name => {
-                        const s = students.find(s => s.name.includes(name));
-                        if (s) attendance[s.id] = 'present';
-                    });
-                    UI.toast('تم تحديث قائمة الحضور بنجاح', 'success');
-                }
-            } catch (err) {
-                console.error("AI Error:", err);
-                UI.toast('فشل الذكاء الاصطناعي في تمييز الوجوه. حاول مرة أخرى.', 'error');
-            } finally {
-                document.getElementById('aiCameraText').innerText = 'انتهى التحليل. يمكنك التقاط صورة أخرى لزاوية مختلفة.';
-                btn.disabled = false;
-                btn.innerHTML = `<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span> التقاط صورة أخرى للتحليل`;
-                
-                // Restart Face Detection for next student
-                if (isAuto) {
-                    setTimeout(() => FaceDetection.start(), 2000); // 2s delay to avoid double capture
-                }
-                
+        /**
+         * Local recognition handler
+         */
+        function handleCapturedDescriptor(descriptor, isHybrid = false) {
+            // Removed redundant 'Captured face' toast
+            
+            const match = FaceDetection.findBestMatch(descriptor, students);
+            
+            if (match) {
+                attendance[match.id] = 'present';
                 renderList();
+                UI.toast(`تم التعرف على: ${match.name}`, 'success');
+                
+                if (isHybrid) {
+                    showQrSuccess(`تم التعرف:\n${match.name}`);
+                } else {
+                    // Visual feedback in AI modal
+                    document.getElementById('aiCameraText').innerText = `تم التعرف على ${match.name} ✨`;
+                }
+            } else {
+                UI.toast('لم يتم التعرف على الطالب في قاعدة البيانات', 'warning');
+            }
+            
+            // Resume detection after a short delay
+            setTimeout(() => {
+                if (FaceDetection.video && !FaceDetection.isActive) {
+                    FaceDetection.start(isHybrid, isHybrid); 
+                }
+            }, 2000);
+        }
+
+        async function captureImageAi() {
+            if (FaceDetection.currentDetection) {
+                const descriptor = Array.from(FaceDetection.currentDetection.descriptor);
+                handleCapturedDescriptor(descriptor, false);
+            } else {
+                UI.toast('يرجى توجيه الكاميرا نحو وجه طالب أولاً', 'warning');
             }
         }
 
@@ -735,14 +748,10 @@
             const date = new Date().toISOString().split('T')[0];
             const list = Object.entries(attendance).map(([id, status]) => ({ studentId: id, status }));
 
-            let imageData = null;
-            if (canvasAi && canvasAi.width > 0) {
-                imageData = UI.compressImage(canvasAi, 0.6, 1024);
-            }
-
             try {
                 UI.toast('جاري حفظ التقرير...', 'info');
-                await DB.saveAttendance(date, currentClass.id, list, user.id, imageData);
+                // No image data saved for privacy as per request
+                await DB.saveAttendance(date, currentClass.id, list, user.id, null);
                 UI.toast('تم حفظ التقرير بنجاح وجاري إرساله للمدير', 'success');
             } catch (e) {
                 console.error("Save Error:", e);

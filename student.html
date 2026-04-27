@@ -6,7 +6,7 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#faf7f2">
+    <meta name="theme-color" content="#faf7f2"> <!-- Using var(--color-cream) -->
     <title>حالة الحضور | الطالب</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
@@ -19,7 +19,7 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#ffa726",
+                        "primary": "#ffab31",
                         "background": "#faf7f2",
                         "surface": "#ffffff",
                         "success": "#4caf50",
@@ -33,7 +33,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
-            background-color: #faf7f2;
+            background-color: var(--color-cream);
         }
 
         .glass {
@@ -63,16 +63,20 @@
             class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl liquid-button flex items-center justify-center text-primary group">
             <span class="material-symbols-outlined text-lg sm:text-xl transition-transform">arrow_forward</span>
         </button>
-        <h1 class="text-xl sm:text-2xl font-bold refractive-text">تقرير حضور الطالب</h1>
+        <h1 class="text-xl sm:text-2xl font-bold refractive-text flex-1">تقرير حضور الطالب</h1>
+        
+        <button id="notifBtn" onclick="openNotifications()" class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl liquid-glass flex items-center justify-center text-gray-500 hover:text-primary transition-all relative">
+            <span class="material-symbols-outlined text-lg sm:text-xl">notifications</span>
+            <div id="notifBadge" class="hidden absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>
+        </button>
     </header>
 
     <main class="max-w-xl mx-auto space-y-8">
         <!-- Student Card -->
         <div id="studentCard" class="liquid-glass-prominent p-6 sm:p-8 rounded-2xl relative overflow-hidden z-10 transition-all duration-700 delay-200">
             <div class="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8">
-                <div class="relative">
-                    <img id="studentAvatar" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/30 object-cover" src="">
-                    <div class="absolute inset-0 rounded-full border border-white/10 pointer-events-none"></div>
+                <div id="avatarContainer" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 border-primary/30 flex items-center justify-center text-white font-black text-2xl sm:text-4xl shadow-lg">
+                    ?
                 </div>
                 <div>
                     <h2 id="studentName" class="text-xl sm:text-3xl font-black refractive-text leading-tight">اسم الطالب</h2>
@@ -132,6 +136,22 @@
         </section>
     </main>
 
+    <!-- Notification Panel -->
+    <div id="notifOverlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] hidden flex justify-start" onclick="closeNotifications()">
+        <div class="w-full max-w-sm h-full liquid-glass-modal rounded-l-[2rem] shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300" id="notifPanel" onclick="event.stopPropagation()">
+            <div class="p-6 flex justify-between items-center border-b border-black/[0.05]">
+                <h2 class="text-xl font-black text-gray-800 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">notifications</span>
+                    الإشعارات
+                </h2>
+                <button onclick="closeNotifications()" class="w-9 h-9 rounded-xl liquid-glass-icon icon-error flex items-center justify-center text-lg">×</button>
+            </div>
+            <div id="notifList" class="flex-1 overflow-y-auto p-4 space-y-4 liquid-glass-scrollbar">
+                <!-- Notifications go here -->
+            </div>
+        </div>
+    </div>
+
     <!-- QR Modal -->
     <div id="qrModal" class="hidden fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300 overflow-hidden">
         <div class="liquid-glass-prominent p-6 sm:p-10 rounded-2xl flex flex-col items-center max-w-sm w-full scale-95 transition-transform duration-300 relative z-10" id="qrModalContent">
@@ -166,41 +186,54 @@
         let cachedData = null;
 
         async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const studentId = params.get('id');
+            if (!studentId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
             try {
                 UI.setLoading(true);
-                await DB.init();
-                
-                // Parallel fetch
                 const [students, classes, allRecords, holidays] = await Promise.all([
-                    DB.getStudents(),
+                    DB.getCollection(DB.KEYS.STUDENTS),
                     DB.getClasses(),
-                    DB.getRecords(),
+                    DB.getCollection(DB.KEYS.RECORDS),
                     DB.getCollection(DB.KEYS.HOLIDAYS)
                 ]);
 
                 cachedData = { students, classes, allRecords, holidays };
 
-                const student = students.find(s => s.id === studentId);
+                const student = students.find(s => s.academicId === studentId || s.id === studentId);
                 if (!student) {
                     UI.toast('الطالب غير موجود', 'error');
                     setTimeout(() => window.location.href = 'index.html', 2000);
                     return;
                 }
 
-                const className = classes.find(c => c.id === student.classId);
+                // Global student context
+                window.currentStudent = student;
+
+                const cls = classes.find(c => c.id === student.classId);
                 document.getElementById('studentName').innerText = student.name;
-                document.getElementById('studentInfo').innerText = className ? `${className.name} - ${className.section}` : '';
-                document.getElementById('studentAvatar').src = student.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + student.name;
+                document.getElementById('studentInfo').innerText = cls ? `${cls.name} - ${cls.section}` : '';
+                
+                const avatar = document.getElementById('avatarContainer');
+                avatar.innerText = student.name ? student.name.trim().charAt(0) : '?';
+                avatar.style.background = UI.getAvatarColor(student.id);
 
-                await renderAttendance();
-
+                await Promise.all([
+                    renderAttendance(),
+                    checkNotifications()
+                ]);
+                
                 // Generate QR Code
                 document.getElementById("qrcode").innerHTML = ""; 
                 new QRCode(document.getElementById("qrcode"), {
                     text: student.id,
                     width: 200,
                     height: 200,
-                    colorDark : "#2c2c2c",
+                    colorDark : "#1b1b1b",
                     colorLight : "#ffffff",
                     correctLevel : QRCode.CorrectLevel.H
                 });
@@ -344,6 +377,66 @@
             setTimeout(() => {
                 modal.classList.add('hidden');
             }, 300);
+        }
+
+        async function checkNotifications() {
+            if (!window.currentStudent) return;
+            try {
+                const target = {
+                    id: window.currentStudent.academicId,
+                    classId: window.currentStudent.classId
+                };
+                const notifications = await DB.getNotifications(target);
+                
+                // Check for new notifications
+                const lastSeenCount = parseInt(localStorage.getItem(`notif_count_${target.id}`) || '0');
+                if (notifications.length > lastSeenCount) {
+                    document.getElementById('notifBadge').classList.remove('hidden');
+                }
+                
+                window.studentNotifications = notifications;
+            } catch (err) {
+                console.error("Notification Error:", err);
+                window.studentNotifications = [];
+            }
+        }
+
+        function openNotifications() {
+            const overlay = document.getElementById('notifOverlay');
+            const panel = document.getElementById('notifPanel');
+            const list = document.getElementById('notifList');
+
+            overlay.classList.remove('hidden');
+            setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+
+            // Mark as seen
+            if (window.currentStudent) {
+                localStorage.setItem(`notif_count_${window.currentStudent.academicId}`, window.studentNotifications.length);
+                document.getElementById('notifBadge').classList.add('hidden');
+            }
+
+            if (!window.studentNotifications || window.studentNotifications.length === 0) {
+                list.innerHTML = '<div class="p-12 text-center text-gray-400 text-sm font-bold">لا توجد إشعارات</div>';
+                return;
+            }
+
+            list.innerHTML = window.studentNotifications.map(n => `
+                <div class="liquid-glass liquid-glass-prominent p-4 rounded-2xl border border-black/5">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-black text-gray-800 text-sm">${n.title}</h4>
+                        <p class="text-[9px] font-bold text-gray-400">${new Date(n.timestamp).toLocaleDateString('ar-SA')}</p>
+                    </div>
+                    <p class="text-xs text-gray-600 leading-relaxed mb-3">${n.message}</p>
+                    ${n.image ? `<img src="${n.image}" class="w-full h-32 rounded-xl object-cover mb-2 border border-black/10">` : ''}
+                </div>
+            `).join('');
+        }
+
+        function closeNotifications() {
+            const overlay = document.getElementById('notifOverlay');
+            const panel = document.getElementById('notifPanel');
+            panel.classList.add('translate-x-full');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
         }
 
         init();
