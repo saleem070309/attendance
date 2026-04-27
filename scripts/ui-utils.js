@@ -267,6 +267,16 @@ const UI = {
             overlay.querySelector('#okBtn').onclick = close;
             overlay.onclick = (e) => { if (e.target === overlay) close(); };
         });
+    },
+
+    /**
+     * Colorful initial-based avatar background
+     */
+    getAvatarColor(id) {
+        if (!id) return '#ffa726';
+        const colors = ['#ffa726', '#42a5f5', '#66bb6a', '#ef5350', '#ab47bc', '#26c6da', '#d4e157', '#ff7043'];
+        const hash = String(id).split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+        return colors[Math.abs(hash) % colors.length];
     }
 };
 

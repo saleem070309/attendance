@@ -1,48 +1,75 @@
 /**
- * Face Detection Engine using MediaPipe Tasks Vision
- * Optimized for "Face as Barcode" automated attendance.
+ * Face Detection & Recognition Engine using face-api.js
+ * Optimized for local "Digital Fingerprint" (Descriptor) matching.
  */
 
 const FaceDetection = {
-    detector: null,
+    nets: null,
     video: null,
     canvas: null,
     ctx: null,
     isActive: false,
+    isModelsLoaded: false,
     
-    // Stability tracking (Time-based for consistency across hardware)
-    lastBox: null,
+    // Config for different modes
+    MODELS_URL: 'https://justadudewhohacks.github.io/face-api.js/models', // Public models
+    
+    // Stability tracking
+    lastDescriptor: null,
     stableStartTime: null,
-    STABILITY_THRESHOLD: 0.03, // 3% variance allowed
-    REQUIRED_STABILITY_MS: 500, // Exactly 0.5 seconds
+    REQUIRED_STABILITY_MS: 600, 
     
-    onCapture: null, // Callback when face is locked
+    onCapture: null, // Callback with descriptor when face is locked
 
-    async init(videoElement, canvasElement) {
-        this.video = videoElement;
-        this.canvas = canvasElement;
-        if (canvasElement) this.ctx = canvasElement.getContext('2d');
+    async init(videoElement = null, canvasElement = null) {
+        if (videoElement) this.video = videoElement;
+        if (canvasElement) {
+            this.canvas = canvasElement;
+            this.ctx = canvasElement.getContext('2d');
+        }
 
-        if (this.detector) return; // Already initialized
+        if (this.isModelsLoaded) return;
 
         try {
-            const vision = await FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-            );
-            
-            this.detector = await FaceDetector.createFromOptions(vision, {
-                baseOptions: {
-                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`,
-                    delegate: "GPU"
-                },
-                runningMode: "video"
-            });
-            
-            console.log("Face Detector Initialized");
+            console.log("Loading face-api.js models (and caching)...");
+            // The models are loaded from this URL and will be intercepted by sw.js for caching
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(this.MODELS_URL),
+                faceapi.nets.ssdMobilenetv1.loadFromUri(this.MODELS_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(this.MODELS_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(this.MODELS_URL)
+            ]);
+            this.isModelsLoaded = true;
+            console.log("Face API Models Ready");
         } catch (e) {
-            console.error("Face Detector Init Failed:", e);
+            console.error("Face API Init Failed:", e);
             throw e;
         }
+    },
+
+    /**
+     * "Warm up" the engine by running a dummy detection.
+     * This pre-compiles WebGL shaders and avoids lag during real use.
+     */
+    async warmUp() {
+        if (!this.isModelsLoaded) await this.init();
+        
+        console.log("Warming up Face AI engine...");
+        const dummyCanvas = document.createElement('canvas');
+        dummyCanvas.width = 160;
+        dummyCanvas.height = 120;
+        const ctx = dummyCanvas.getContext('2d');
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, 160, 120);
+
+        try {
+            // Run both detectors once to warm up shaders
+            await faceapi.detectSingleFace(dummyCanvas, new faceapi.TinyFaceDetectorOptions());
+            await faceapi.detectSingleFace(dummyCanvas, new faceapi.SsdMobilenetv1Options());
+        } catch (e) {
+            console.warn("Warm up failed, but maybe models are okay:", e);
+        }
+        console.log("Face AI engine warmed up and ready.");
     },
 
     setElements(video, canvas) {
@@ -51,17 +78,19 @@ const FaceDetection = {
         if (canvas) this.ctx = canvas.getContext('2d');
     },
 
-    start() {
-        if (!this.detector) return;
+    start(useTiny = true, autoLock = true) {
+        if (!this.isModelsLoaded) return;
         this.isActive = true;
-        this.lastBox = null;
-        this.stableFrames = 0;
+        this.useTiny = useTiny;
+        this.autoLock = autoLock;
+        this.stableStartTime = null;
         this.predictLoop();
     },
 
     stop() {
         this.isActive = false;
-        if (this.ctx) {
+        this.currentDetection = null; // Clear current detection on stop
+        if (this.ctx && this.canvas) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         }
     },
@@ -69,145 +98,175 @@ const FaceDetection = {
     async predictLoop() {
         if (!this.isActive) return;
 
-        // Ensure video is ready and has valid dimensions to avoid "ROI width/height must be > 0" errors
-        if (this.video.readyState >= 2 && this.video.videoWidth > 0 && this.video.videoHeight > 0) {
+        // Ensure video is playing and metadata is loaded
+        if (this.video.readyState >= 2 && !this.video.paused) {
             try {
-                this.canvas.width = this.video.videoWidth;
-                this.canvas.height = this.video.videoHeight;
-                
-                const startTimeMs = performance.now();
-                const result = this.detector.detectForVideo(this.video, startTimeMs);
-                
-                if (result && result.detections) {
-                    this.drawDetections(result.detections);
-                    this.checkStability(result.detections);
+                // Sync canvas size only if needed
+                if (this.canvas.width !== this.video.videoWidth) {
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
+                }
+
+                // Optimization: Use smaller input size for i3 CPU
+                const options = this.useTiny 
+                    ? new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 })
+                    : new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 });
+
+                const detection = await faceapi.detectSingleFace(this.video, options)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+
+                this.currentDetection = detection; // Store globally for manual capture
+
+                if (detection) {
+                    this.drawDetections(detection);
+                    if (this.autoLock) {
+                        this.checkStability(detection);
+                    }
+                } else {
+                    this.stableStartTime = null;
+                    if (this.ctx) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 }
             } catch (err) {
                 console.warn("Face detection frame error:", err);
             }
         }
 
-        requestAnimationFrame(() => this.predictLoop());
+        if (this.isActive) {
+            // Throttling: Wait at least 50ms between frames to give CPU breathing room
+            setTimeout(() => {
+                if (this.isActive) requestAnimationFrame(() => this.predictLoop());
+            }, 50);
+        }
     },
 
-    drawDetections(detections) {
+    drawDetections(detection) {
+        if (!this.ctx) return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const { x, y, width, height } = detection.detection.box;
         
-        detections.forEach(detection => {
-            let { originX, originY, width, height } = detection.boundingBox;
-            
-            // Fix X-axis tracking mirror issue
-            // Since the canvas has scale-x-[-1] in CSS, we need to adjust drawing coordinates
-            // if MediaPipe is detecting on the unmirrored buffer.
-            // If the user says it's "opposite", then we need to flip the X coordinate here.
-            originX = this.canvas.width - originX - width;
+        // Face ID Style Ring
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+        const radius = Math.max(width, height) * 0.7;
 
-            const centerX = originX + width / 2;
-            const centerY = originY + height / 2;
-            const radius = Math.max(width, height) * 0.7; // Refined Face ID style radius
+        const now = performance.now();
+        const elapsed = this.stableStartTime ? (now - this.stableStartTime) : 0;
+        const progress = Math.min(elapsed / this.REQUIRED_STABILITY_MS, 1);
 
-            const now = performance.now();
-            const elapsed = this.stableStartTime ? (now - this.stableStartTime) : 0;
-            const progress = Math.min(elapsed / this.REQUIRED_STABILITY_MS, 1);
-            const isStableEnough = progress > 0.3;
+        this.ctx.save();
+        
+        // Background Circle
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = 'rgba(255, 171, 49, 0.2)';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.stroke();
 
-            // Premium Face ID Design
-            this.ctx.save();
-            
-            // 1. Draw Subtle outer ring
+        // Progress Ring
+        if (progress > 0) {
+            this.ctx.setLineDash([]);
             this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            this.ctx.strokeStyle = 'rgba(122, 175, 255, 0.2)';
-            this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([5, 10]);
+            this.ctx.arc(centerX, centerY, radius, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * progress));
+            this.ctx.strokeStyle = '#ffab31';
+            this.ctx.lineWidth = 6;
+            this.ctx.lineCap = 'round';
             this.ctx.stroke();
+        }
 
-            // 2. Draw Progress Ring (Face ID Style)
-            if (this.stableFrames > 0) {
-                this.ctx.setLineDash([]); // Reset dash
-                this.ctx.beginPath();
-                // Start from top (-PI/2)
-                this.ctx.arc(centerX, centerY, radius, -Math.PI/2, (-Math.PI/2) + (Math.PI * 2 * progress));
-                
-                // Dynamic Color based on stability
-                // Solid Sharp Line for Face ID ring
-                this.ctx.strokeStyle = '#7aafff';
-                this.ctx.lineWidth = 6;
-                this.ctx.lineCap = 'round';
-                this.ctx.shadowBlur = 0;
-                this.ctx.stroke();
-            }
+        // Scan Pulse
+        if (progress > 0.5) {
+            const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
+            this.ctx.beginPath();
+            this.ctx.arc(centerX, centerY, radius * (0.9 + pulse * 0.1), 0, Math.PI * 2);
+            this.ctx.strokeStyle = `rgba(255, 171, 49, ${0.1 + pulse * 0.2})`;
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+        }
 
-            // 3. Draw Scanline Pulse
-            if (isStableEnough) {
-                const pulse = (Math.sin(Date.now() / 200) + 1) / 2;
-                this.ctx.beginPath();
-                this.ctx.arc(centerX, centerY, radius * (0.9 + pulse * 0.1), 0, Math.PI * 2);
-                this.ctx.strokeStyle = `rgba(122, 175, 255, ${0.1 + pulse * 0.2})`;
-                this.ctx.lineWidth = 1;
-                this.ctx.stroke();
-            }
-
-            // 4. Draw Locking Corners (Refined)
-            this.ctx.shadowBlur = 0;
-            this.ctx.strokeStyle = isStableEnough ? '#7aafff' : 'rgba(255, 255, 255, 0.4)';
-            this.ctx.lineWidth = 3;
-            const cornerLen = 30;
-            
-            // Draw 4 corners around the circle area
-            const corners = [
-                {x: centerX - radius, y: centerY - radius, dx: 1, dy: 1},
-                {x: centerX + radius, y: centerY - radius, dx: -1, dy: 1},
-                {x: centerX - radius, y: centerY + radius, dx: 1, dy: -1},
-                {x: centerX + radius, y: centerY + radius, dx: -1, dy: -1}
-            ];
-
-            corners.forEach(c => {
-                this.ctx.beginPath();
-                this.ctx.moveTo(c.x, c.y + c.dy * cornerLen);
-                this.ctx.lineTo(c.x, c.y);
-                this.ctx.lineTo(c.x + c.dx * cornerLen, c.y);
-                this.ctx.stroke();
-            });
-
-            this.ctx.restore();
-        });
+        this.ctx.restore();
     },
 
-    checkStability(detections) {
-        if (detections.length === 0) {
-            this.stableStartTime = null;
-            this.lastBox = null;
-            return;
+    checkStability(detection) {
+        if (!this.stableStartTime) {
+            this.stableStartTime = performance.now();
         }
 
-        // Focus on the biggest face
-        const biggestFace = detections.reduce((prev, current) => 
-            (prev.boundingBox.width * prev.boundingBox.height > current.boundingBox.width * current.boundingBox.height) ? prev : current
-        );
+        if (performance.now() - this.stableStartTime >= this.REQUIRED_STABILITY_MS) {
+            this.isActive = false;
+            const descriptor = Array.from(detection.descriptor);
+            if (this.onCapture) this.onCapture(descriptor);
+        }
+    },
 
-        const currentBox = biggestFace.boundingBox;
+    /**
+     * Helper to get a descriptor from a static image (for registration)
+     */
+    async getDescriptorFromImage(imgElement) {
+        if (!this.isModelsLoaded) await this.init();
+        
+        // 1. Optimization: Downscale image to max 600px to drastically speed up processing on i3
+        const MAX_WIDTH = 600;
+        let scale = 1;
+        let sourceElement = imgElement;
 
-        if (this.lastBox) {
-            const dx = Math.abs(currentBox.originX - this.lastBox.originX) / this.canvas.width;
-            const dy = Math.abs(currentBox.originY - this.lastBox.originY) / this.canvas.height;
-            const dw = Math.abs(currentBox.width - this.lastBox.width) / this.canvas.width;
+        // Create a temporary canvas for downscaling
+        if (imgElement.width > MAX_WIDTH || imgElement.naturalWidth > MAX_WIDTH) {
+            const tempCanvas = document.createElement('canvas');
+            const origWidth = imgElement.naturalWidth || imgElement.width;
+            const origHeight = imgElement.naturalHeight || imgElement.height;
+            scale = MAX_WIDTH / origWidth;
             
-            if (dx < this.STABILITY_THRESHOLD && dy < this.STABILITY_THRESHOLD && dw < this.STABILITY_THRESHOLD) {
-                if (!this.stableStartTime) {
-                    this.stableStartTime = performance.now();
-                }
-            } else {
-                this.stableStartTime = null;
+            tempCanvas.width = MAX_WIDTH;
+            tempCanvas.height = origHeight * scale;
+            
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(imgElement, 0, 0, tempCanvas.width, tempCanvas.height);
+            sourceElement = tempCanvas;
+        }
+
+        // 2. Optimization: Try TinyFaceDetector first (fastest)
+        let detection = await faceapi.detectSingleFace(sourceElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 416 }))
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+
+        // 3. Fallback: If Tiny fails to find a face in the static image, try SSD Mobilenet
+        if (!detection) {
+            console.log("TinyFaceDetector failed, falling back to SSD Mobilenet...");
+            detection = await faceapi.detectSingleFace(sourceElement, new faceapi.SsdMobilenetv1Options())
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+        }
+            
+        return detection ? Array.from(detection.descriptor) : null;
+    },
+
+    /**
+     * Local recognition: match a captured descriptor against a list of student descriptors
+     */
+    findBestMatch(queryDescriptor, students) {
+        if (!queryDescriptor) return null;
+        
+        let bestMatch = null;
+        let minDistance = 0.6; // Threshold for face-api.js (usually 0.6 for Mobilenet)
+
+        students.forEach(student => {
+            if (!student.descriptor) return;
+            
+            // Student descriptor might be stored as a regular array or JSON string
+            const savedDescriptor = typeof student.descriptor === 'string' 
+                ? JSON.parse(student.descriptor) 
+                : student.descriptor;
+                
+            const distance = faceapi.euclideanDistance(queryDescriptor, savedDescriptor);
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestMatch = student;
             }
-        }
+        });
 
-        this.lastBox = currentBox;
-
-        if (this.stableStartTime && (performance.now() - this.stableStartTime) >= this.REQUIRED_STABILITY_MS) {
-            this.isActive = false; // Pause loop
-            this.stableStartTime = null; // Reset for next time
-            if (this.onCapture) this.onCapture();
-        }
+        return bestMatch;
     }
 };

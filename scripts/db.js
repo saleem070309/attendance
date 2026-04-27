@@ -11,6 +11,7 @@ const DB = {
         RECORDS: 'v2_records',
         REPORTS: 'v2_records', // AI Alias
         HOLIDAYS: 'v2_holidays',
+        NOTIFICATIONS: 'v2_notifications',
         CURRENT_USER: 'attendance_current_user' // Keep local for session
     },
     dbInstance: null,
@@ -46,6 +47,14 @@ const DB = {
             firebase.initializeApp(firebaseConfig);
         }
         this.dbInstance = firebase.firestore();
+        
+        // Enable Offline Persistence for instant startup
+        try {
+            await this.dbInstance.enablePersistence({ synchronizeTabs: true });
+            console.log("Firebase Offline Persistence Enabled");
+        } catch (err) {
+            console.warn("Firebase Persistence failed:", err.code);
+        }
         
         try {
             // Check if admin exists to seed data if empty
@@ -86,6 +95,7 @@ const DB = {
     },
 
     async getCollection(collectionName) {
+        await this.init();
         const snap = await this.dbInstance.collection(collectionName).get();
         return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     },
@@ -197,6 +207,52 @@ const DB = {
         }
     },
 
+    // Notification Methods
+    async getNotifications(target = {}) {
+        await this.init();
+        let q = this.dbInstance.collection(this.KEYS.NOTIFICATIONS);
+        
+        // If target is provided (for student view)
+        if (target.id || target.classId) {
+            // Get all 'all' notifications
+            const q1 = await q.where('targetType', '==', 'all').get();
+            let results = q1.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Get class specific
+            if (target.classId) {
+                const q2 = await q.where('targetType', '==', 'class').where('targetId', '==', target.classId).get();
+                results = [...results, ...q2.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+            }
+
+            // Get student specific
+            if (target.id) {
+                const q3 = await q.where('targetType', '==', 'student').where('targetId', '==', target.id).get();
+                results = [...results, ...q3.docs.map(doc => ({ id: doc.id, ...doc.data() }))];
+            }
+            
+            // Remove duplicates (if any) and sort
+            const uniqueResults = Array.from(new Map(results.map(item => [item.id, item])).values());
+            return uniqueResults.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        }
+
+        const snap = await q.orderBy('timestamp', 'desc').get();
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    },
+
+    async addNotification(notification) {
+        notification.timestamp = new Date().toISOString();
+        const ref = await this.dbInstance.collection(this.KEYS.NOTIFICATIONS).add(notification);
+        return ref.id;
+    },
+
+    async updateNotification(id, data) {
+        await this.dbInstance.collection(this.KEYS.NOTIFICATIONS).doc(id).update(data);
+    },
+
+    async deleteNotification(id) {
+        await this.dbInstance.collection(this.KEYS.NOTIFICATIONS).doc(id).delete();
+    },
+
     // Holiday logic
     async isHoliday(dateString) {
         const date = new Date(dateString);
@@ -241,6 +297,7 @@ const DB = {
         if (table === 'teachers') return await this.deleteTeacher(id);
         if (table === 'classes') return await this.deleteClass(id);
         if (table === 'records') return await this.deleteRecord(id);
+        if (table === 'notifications') return await this.deleteNotification(id);
         
         const col = this.KEYS[table.toUpperCase()] || table;
         return await this.dbInstance.collection(col).doc(id).delete();

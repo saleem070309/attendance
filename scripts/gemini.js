@@ -15,6 +15,11 @@ const Gemini = {
         return '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';
     },
 
+    getInworldKey() {
+        // ضع مفتاح Inworld الخاص بك هنا
+        return 'cXpIamdtOXpLa1F0dDFuNVVyeVg0MVdoUVZHUUhyNGc6bEptVnpuc0R5aEtSTXpnOVF2a3dRbDd6QnNIYXliazdmMmJLUlNOem5Tc2dPYjRDQkRuRzNTWFQ2dWo1enpUdQ==';
+    },
+
     /**
      * Cleans base64 string by removing the data URL prefix if present.
      */
@@ -41,7 +46,8 @@ const Gemini = {
 
         // Build Multi-Part Prompt
         const parts = [];
-        parts.push({ text: `
+        parts.push({
+            text: `
             Role: Expert Computer Vision Attendance Specialist.
             Task: Identifiy students in the GROUP PHOTO by comparing them against the provided REFERENCE PHOTOS.
             
@@ -74,13 +80,13 @@ const Gemini = {
 
         try {
             dispatch(`Calling OpenRouter (${model})...`, 'req');
-            
+
             // Convert to OpenRouter message format
             const messagesContent = parts.map(p => {
                 if (p.text) return { type: "text", text: p.text };
-                if (p.inline_data) return { 
-                    type: "image_url", 
-                    image_url: { url: `data:${p.inline_data.mime_type};base64,${p.inline_data.data}` } 
+                if (p.inline_data) return {
+                    type: "image_url",
+                    image_url: { url: `data:${p.inline_data.mime_type};base64,${p.inline_data.data}` }
                 };
                 return null;
             }).filter(c => c !== null);
@@ -101,7 +107,7 @@ const Gemini = {
             });
 
             const data = await response.json();
-            
+
             if (data.error) {
                 if (retries > 0 && data.error.message.includes('overloaded')) {
                     dispatch('OpenRouter busy, retrying...', 'warning');
@@ -110,7 +116,7 @@ const Gemini = {
                 }
                 throw new Error(data.error.message);
             }
-            
+
             const resultText = data.choices[0].message.content;
             return JSON.parse(resultText);
 
