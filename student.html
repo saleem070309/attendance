@@ -427,7 +427,7 @@
                         <p class="text-[9px] font-bold text-gray-400">${new Date(n.timestamp).toLocaleDateString('ar-SA')}</p>
                     </div>
                     <p class="text-xs text-gray-600 leading-relaxed mb-3">${n.message}</p>
-                    ${n.image ? `<img src="${n.image}" class="w-full h-32 rounded-xl object-cover mb-2 border border-black/10">` : ''}
+                    ${n.image ? `<img src="${UI.formatImgUrl(n.image)}" class="w-full h-32 rounded-xl object-cover mb-2 border border-black/10">` : ''}
                 </div>
             `).join('');
         }

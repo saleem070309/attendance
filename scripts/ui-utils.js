@@ -136,36 +136,58 @@ const UI = {
     /**
      * Smart Image Compression
      * Resizes and compresses image to stay near target size
-     * @param {HTMLCanvasElement} canvas 
+     * @param {File|HTMLImageElement|HTMLCanvasElement} source 
+     * @param {number} maxDimension Maximum width or height in pixels
      * @param {number} quality 0.1 to 1.0
-     * @param {number} maxWidth Maximum width in pixels
-     * @returns {string} base64 encoded jpeg (no header)
+     * @returns {Promise<string>} Full Data URL
      */
-    compressImage(canvas, quality = 0.6, maxWidth = 1024) {
-        let width = canvas.width;
-        let height = canvas.height;
-
-        // Resize if too large
-        if (width > maxWidth) {
-            height = (maxWidth / width) * height;
-            width = maxWidth;
+    async compressImage(source, maxDimension = 1024, quality = 0.6) {
+        let img;
+        
+        if (source instanceof File) {
+            img = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const i = new Image();
+                    i.onload = () => resolve(i);
+                    i.onerror = reject;
+                    i.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(source);
+            });
+        } else {
+            img = source;
         }
 
-        const offscreen = document.createElement('canvas');
-        offscreen.width = width;
-        offscreen.height = height;
-        const ctx = offscreen.getContext('2d');
-        ctx.drawImage(canvas, 0, 0, width, height);
+        let width = img.width || img.videoWidth;
+        let height = img.height || img.videoHeight;
+
+        // Resize if too large (maintaining aspect ratio)
+        if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+                height = (maxDimension / width) * height;
+                width = maxDimension;
+            } else {
+                width = (maxDimension / height) * width;
+                height = maxDimension;
+            }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
 
         // JPEG compression
-        const dataUrl = offscreen.toDataURL('image/jpeg', quality);
-        const base64 = dataUrl.split(',')[1];
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
         
         // Log size for debugging
-        const sizeKB = Math.round((base64.length * 3) / 4 / 1024);
-        console.log(`[UI] Image Compressed: ${width}x${height}, Quality: ${quality}, Size: ${sizeKB}KB`);
+        const sizeKB = Math.round((dataUrl.length * 3) / 4 / 1024);
+        console.log(`[UI] Image Compressed: ${Math.round(width)}x${Math.round(height)}, Quality: ${quality}, Size: ${sizeKB}KB`);
         
-        return base64;
+        return dataUrl;
     },
 
     confirm(title, message, options = {}) {

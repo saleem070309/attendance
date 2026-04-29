@@ -19,9 +19,14 @@ const Agent = {
 
     async getSystemContext() {
         try {
-            const [students, classes, records, teachers] = await Promise.all([
-                DB.getStudents(), DB.getClasses(), DB.getRecords(), DB.getTeachers()
+            const [students, classes, records, teachers, instructionTemplate] = await Promise.all([
+                DB.getStudents(), DB.getClasses(), DB.getRecords(), DB.getTeachers(),
+                fetch('agent-instructions.md').then(r => r.text()).catch(() => '')
             ]);
+
+            if (!instructionTemplate) {
+                throw new Error('فشل تحميل ملف التعليمات agent-instructions.md');
+            }
 
             const currentUser = typeof Auth !== 'undefined' ? Auth.getCurrentUser() : null;
             const currentUserId = currentUser ? currentUser.id : '1';
@@ -80,87 +85,39 @@ const Agent = {
             // آخر 10 تقارير للسياق
             const recentReports = records
                 .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
-                .slice(0, 10);
+                .slice(0, 10)
+                .map(r => {
+                    const cls = classes.find(c => c.id === r.classId);
+                    return `• تقرير ID: ${r.id} | التاريخ: ${r.date} | الفصل: ${cls ? cls.name : r.classId} | الطلاب: ${r.details?.length || 0}`;
+                }).join('\n');
 
-            return `أنت مساعد ذكي ونظام خبير متخصص لنظام "حضور وغياب المدرسي".
-المستخدم الحالي: ${currentUser ? currentUser.name : 'مدير النظام'} (ID: ${currentUserId})
-تاريخ اليوم: ${todayHuman} (${todayStr})
+            // تجهيز القوائم
+            const studentsList = studentStats.map(s => `• ${s.name || 'مسمى مفقود'} | ID (الرقم الأكاديمي): ${s.academicId || 'بدون رقم'} | الفصل: ${s.classId || 'غير محدد'} | النسبة: ${s.attendanceRate}%`).join('\n');
+            const classesList = classes.map(c => `• ${c.name || 'مسمى غير محدد'} (${c.section || '-'}) | ID: ${c.id}`).join('\n');
+            const teachersList = teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}) | ID: ${t.id}`).join('\n');
 
-═══ إحصائيات النظام الحالية ═══
-إجمالي الطلاب المسجلين: ${students.length} طالب
-حضور اليوم (${todayStr}): ${presentToday} | غياب اليوم: ${absentToday}
-إجمالي التقارير المسجلة في التاريخ: ${records.length} تقرير
-${lastReportSummary}
+            // تعويض المتغيرات في القالب
+            let finalPrompt = instructionTemplate
+                .replace(/{{USER_NAME}}/g, currentUser ? currentUser.name : 'مدير النظام')
+                .replace(/{{USER_ID}}/g, currentUserId)
+                .replace(/{{TODAY_HUMAN}}/g, todayHuman)
+                .replace(/{{TODAY_STR}}/g, todayStr)
+                .replace(/{{TOTAL_STUDENTS}}/g, students.length)
+                .replace(/{{PRESENT_TODAY}}/g, presentToday)
+                .replace(/{{ABSENT_TODAY}}/g, absentToday)
+                .replace(/{{TOTAL_RECORDS}}/g, records.length)
+                .replace(/{{LAST_REPORT_SUMMARY}}/g, lastReportSummary)
+                .replace(/{{RECENT_REPORTS}}/g, recentReports)
+                .replace(/{{LOW_ATTENDANCE_COUNT}}/g, lowAttendance.length)
+                .replace(/{{PERFECT_ATTENDANCE_COUNT}}/g, perfectAttendance.length)
+                .replace(/{{STUDENTS_LIST}}/g, studentsList)
+                .replace(/{{CLASSES_LIST}}/g, classesList)
+                .replace(/{{TEACHERS_LIST}}/g, teachersList);
 
-═══ السجلات والتقارير الأخيرة (IDs للتعامل معها) ═══
-${recentReports.map(r => {
-                const cls = classes.find(c => c.id === r.classId);
-                return `• تقرير ID: ${r.id} | التاريخ: ${r.date} | الفصل: ${cls ? cls.name : r.classId} | الطلاب: ${r.details?.length || 0}`;
-            }).join('\n')}
-
-═══ ملخص حالة الطلاب ═══
-• طلاب يتطلبون متابعة (حضور < 75%): ${lowAttendance.length}
-• طلاب متميزون (حضور 100%): ${perfectAttendance.length}
-
-═══ قائمة الطلاب التفصيلية ═══
-${studentStats.map(s => `• ${s.name || 'مسمى مفقود'} | ID (الرقم الأكاديمي): ${s.academicId || 'بدون رقم'} | الفصل: ${s.classId || 'غير محدد'} | النسبة: ${s.attendanceRate}%`).join('\n')}
-
-═══ الفصول الدراسية ═══
-${classes.map(c => `• ${c.name || 'مسمى غير محدد'} (${c.section || '-'}) | ID: ${c.id}`).join('\n')}
-
-═══ المعلمون والموظفون ═══
-${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}) | ID: ${t.id} | الرقم الوزاري: ${t.ministryId}`).join('\n')}
-
-═══ القدرات الخاصة بك ═══
-- يمكنك تحليل البيانات وتقديم توصيات.
-- يمكنك إنشاء ملفات Excel (استخدم نوع export_excel).
-- يمكنك إنشاء تقارير Word (استخدم نوع export_word).
-- يمكنك عرض رسوم بيانية (استخدم نوع chart).
-- **جديد**: يمكنك الكتابة في قاعدة البيانات (إضافة/تعديل/حذف) باستخدام نوع database_action.
-- **جديد**: يمكنك معالجة الصور والملفات المرفوعة.
-- **جديد**: يمكنك إرسال إيميلات لأي عنوان يطلبه المستخدم (استخدم نوع send_email).
-
-═══ تعليمات الأوامر ═══
-عند تنفيذ أي عملية، أضف في نهاية ردك سطراً واحداً يبدأ بـ |||COMMAND|||
-يليه مباشرة JSON صحيح على هذا الشكل:
-
-للعمليات على قاعدة البيانات (insert, update, delete):
-بناءً على طلب المستخدم، تأكد دائماً من استخدام المعرف الصحيح من القوائم المزودة. للطلاب استخدم (الرقم الأكاديمي) كمعرف، وللمعلمين والفصول والتقارير استخدم قيمة (ID) المذكورة. 
-**قاعدة هامة**: عند الحذف (delete) أو التعديل (update)، يجب إرسال حقل باسم "id" يحتوي على هذا المعرف. لديك الصلاحية الكاملة.
-
-للطلاب والمعلمين والفصول:
-|||COMMAND|||{"type":"database_action","action":"insert","table":"students","data":{"name":"اسم جديد","academicId":"123","classId":"ID_CLASS"}}
-// يمكنك أيضاً إضافة عدة عناصر في مصفوفة واحدة:
-|||COMMAND|||{"type":"database_action","action":"insert","table":"students","data":[{"name":"الأول","academicId":"1"}, {"name":"الثاني","academicId":"2"}]}
-|||COMMAND|||{"type":"database_action","action":"update","table":"students","id":"ID_HERE","data":{"name":"اسم معدل","classId":"NEW_ID"}}
-|||COMMAND|||{"type":"database_action","action":"delete","table":"students","ids":["ID1", "ID2", "ID3"]}
-
-للتقارير والسجلات (records):
-عند إنشاء تقرير جديد، استخدم table: "records" وزود date, classId, teacherId ومصفوفة details التي تحتوي على حالة كل طالب (present أو absent).
-|||COMMAND|||{"type":"database_action","action":"insert","table":"records","data":{"date":"2024-04-22","classId":"c1","teacherId":"${currentUserId}","details":[{"studentId":"2024001","status":"present"},{"studentId":"2024042","status":"absent"}]}}
-|||COMMAND|||{"type":"database_action","action":"update","table":"records","id":"REPORT_ID_FROM_LIST","data":{"details":[{"studentId":"2024001","status":"absent"}]}}
-|||COMMAND|||{"type":"database_action","action":"delete","table":"records","id":"REPORT_ID_FROM_LIST"}
-
-للإكسل:
-|||COMMAND|||{"type":"export_excel","data":[{"الاسم":"أحمد"}],"fileName":"تقرير.xlsx"}
-
-للوورد (Word):
-|||COMMAND|||{"type":"export_word","content":{"title":"عنوان التقرير","sections":[{"heading":"مقدمة","text":"نص القسم هنا"}]},"fileName":"تقرير.docx"}
-
-للرسومات البيانية:
-|||COMMAND|||{"type":"chart","chartType":"bar","labels":["أ","ب"],"values":[80,90],"title":"العنوان"}
-
-للإيميلات (إرسال لأي عنوان يطلبه المستخدم):
-|||COMMAND|||{"type":"send_email","to":"recipient@email.com","subject":"موضوع الإيميل","message":"محتوى الرسالة التفصيلي"}
-
-قواعد صارمة:
-1. التزم بالبيانات الحقيقية.
-2. يمكنك إرسال أكثر من أمر في رد واحد إذا لزم الأمر، كل واحد يبدأ بـ |||COMMAND|||.
-3. لا تذكر أنك لا تملك صلاحية، فقد تم تزويدك بالبيانات اللازمة.
-4. |||COMMAND||| يجب أن يكون في سطر مستقل في نهاية الرد.`;
+            return finalPrompt;
         } catch (e) {
             console.error('Context error:', e);
-            return 'أنت مساعد ذكي لنظام الحضور والغياب. حدث خطأ أثناء جلب البيانات من قاعدة البيانات.';
+            return 'أنت مساعد ذكي لنظام الحضور والغياب. حدث خطأ أثناء جلب البيانات أو التعليمات.';
         }
     },
 
@@ -376,7 +333,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
                         "X-Title": "Attendance AI Agent"
                     },
                     body: {
-                        model: "deepseek/deepseek-v4-flash",
+                        model: "anthropic/claude-opus-4-1-20250805",
                         provider: { order: ["Google", "DeepInfra"], allow_fallbacks: true }
                     }
                 }
@@ -618,6 +575,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
                 <div id="email-status-${Date.now()}" class="text-blue-200 shrink-0 mr-2">جاري...</div>
             </div>`;
         messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
         const status = div.querySelector('div:last-child');
 
         try {
@@ -659,6 +617,7 @@ ${teachers.map(t => `• ${t.name || 'بدون اسم'} (${t.role || 'موظف'}
                 <div id="db-status-${Date.now()}" class="text-primary">جاري...</div>
             </div>`;
         messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
 
         const status = div.querySelector('div:last-child');
 

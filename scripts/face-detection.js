@@ -250,21 +250,24 @@ const FaceDetection = {
         if (!queryDescriptor) return null;
         
         let bestMatch = null;
-        let minDistance = 0.6; // Threshold for face-api.js (usually 0.6 for Mobilenet)
+        let minDistance = 0.6; // Threshold for face-api.js
 
         students.forEach(student => {
-            if (!student.descriptor) return;
-            
-            // Student descriptor might be stored as a regular array or JSON string
-            const savedDescriptor = typeof student.descriptor === 'string' 
-                ? JSON.parse(student.descriptor) 
-                : student.descriptor;
-                
-            const distance = faceapi.euclideanDistance(queryDescriptor, savedDescriptor);
-            if (distance < minDistance) {
-                minDistance = distance;
-                bestMatch = student;
+            // Support both single descriptor and multiple descriptors (array)
+            let descriptors = [];
+            if (student.descriptors) {
+                descriptors = typeof student.descriptors === 'string' ? JSON.parse(student.descriptors) : student.descriptors;
+            } else if (student.descriptor) {
+                descriptors = [typeof student.descriptor === 'string' ? JSON.parse(student.descriptor) : student.descriptor];
             }
+
+            descriptors.forEach(savedDescriptor => {
+                const distance = faceapi.euclideanDistance(queryDescriptor, savedDescriptor);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    bestMatch = student;
+                }
+            });
         });
 
         return bestMatch;

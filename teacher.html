@@ -259,15 +259,42 @@
                 <h3 class="text-2xl font-bold refractive-text mb-2 text-gray-800">تحضير الذكاء الاصطناعي</h3>
                 <p id="aiCameraText" class="text-gray-400 text-sm italic">التقط صورة للتحليل والتعرف على الطلاب</p>
             </div>
-            <div class="liquid-glass-heavy w-full max-w-3xl aspect-video rounded-xl overflow-hidden relative flex items-center justify-center">
-                <video id="videoAi" class="w-full h-full object-cover scale-x-[-1]"></video>
-                <canvas id="canvasAi" class="absolute inset-0 w-full h-full scale-x-[-1] hidden"></canvas>
+            <div class="liquid-glass-heavy w-full max-w-3xl aspect-video rounded-xl overflow-hidden relative flex items-center justify-center bg-black">
+                <video id="videoAi" class="w-full h-full object-cover transition-transform duration-500 scale-x-[-1]"></video>
+                <canvas id="canvasAi" class="absolute inset-0 w-full h-full transition-transform duration-500 scale-x-[-1] pointer-events-none"></canvas>
+                
+                <!-- Camera Controls Overlay -->
+                <div class="absolute top-3 left-3 right-3 flex justify-between z-20 items-center pointer-events-none">
+                    <button onclick="toggleAiMirror()" 
+                        class="liquid-glass-chip !bg-black/40 backdrop-blur-md text-white p-2 rounded-xl flex items-center gap-1 text-[10px] font-bold pointer-events-auto active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-sm">mirrored_side_panel</span>
+                        عكس
+                    </button>
+                    <button onclick="switchAiCamera()" 
+                        class="liquid-glass-chip !bg-black/40 backdrop-blur-md text-white p-2 rounded-xl flex items-center gap-1 text-[10px] font-bold pointer-events-auto active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-sm">flip_camera_ios</span>
+                        تبديل
+                    </button>
+                </div>
+
+                <!-- Recording Indicator -->
+                <div id="recordIndicator" class="hidden absolute top-4 left-1/2 -translate-x-1/2 z-20 px-3 py-1 bg-red-500 text-white text-[10px] font-black rounded-full animate-pulse flex items-center gap-1.5">
+                    <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                    تسجيل مباشر
+                </div>
             </div>
-            <button id="captureBtn" onclick="captureImageAi(false)"
-                class="liquid-button liquid-button-prominent mt-8 py-4 px-12 rounded-xl text-lg flex items-center justify-center gap-2 font-bold">
-                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span>
-                التقاط صورة للتحليل
-            </button>
+            <div class="flex gap-3 mt-8 w-full max-w-md">
+                <button id="captureBtn" onclick="captureImageAi()"
+                    class="flex-1 liquid-button liquid-button-prominent py-4 rounded-xl text-sm flex items-center justify-center gap-2 font-bold transition-all">
+                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span>
+                    التقاط يدوي
+                </button>
+                <button id="recordBtn" onclick="toggleRecordMode()"
+                    class="flex-1 liquid-glass !bg-white/10 border border-white/20 text-white py-4 rounded-xl text-sm flex items-center justify-center gap-2 font-bold transition-all">
+                    <span class="material-symbols-outlined">videocam</span>
+                    تسجيل مستمر
+                </button>
+            </div>
         </div>
     </div>
 
@@ -285,16 +312,23 @@
                     <h3 class="text-2xl font-bold refractive-text mb-1">تحضير هجين (QR & Face)</h3>
                     <p class="text-gray-400 text-xs">مسح الرمز أو تثبيت الوجه للتسجيل التلقائي</p>
                 </div>
-                <button onclick="switchQrCamera()"
-                    class="liquid-glass-chip text-primary px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-bold">
-                    <span class="material-symbols-outlined text-[18px]">flip_camera_ios</span>
-                    تبديل
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="toggleQrMirror()"
+                        class="liquid-glass-chip text-primary px-3 py-2 rounded-xl flex items-center gap-1.5 text-[10px] font-bold">
+                        <span class="material-symbols-outlined text-[16px]">mirrored_side_panel</span>
+                        عكس
+                    </button>
+                    <button onclick="switchQrCamera()"
+                        class="liquid-glass-chip text-primary px-3 py-2 rounded-xl flex items-center gap-1.5 text-[10px] font-bold">
+                        <span class="material-symbols-outlined text-[16px]">flip_camera_ios</span>
+                        تبديل
+                    </button>
+                </div>
             </div>
-            <div class="liquid-glass-heavy w-full aspect-square rounded-xl overflow-hidden relative"
+            <div class="liquid-glass-heavy w-full aspect-square rounded-xl overflow-hidden relative bg-black"
                 id="qrReaderContainer">
-                <div id="qr-reader" class="w-full h-full object-cover"></div>
-                <canvas id="canvasHybrid" class="absolute inset-0 w-full h-full scale-x-[-1] z-10 pointer-events-none"></canvas>
+                <div id="qr-reader" class="w-full h-full object-cover transition-transform duration-500 scale-x-[-1]"></div>
+                <canvas id="canvasHybrid" class="absolute inset-0 w-full h-full transition-transform duration-500 scale-x-[-1] z-10 pointer-events-none"></canvas>
                 
                 <!-- Scanner Guide Overlay -->
                 <div class="absolute inset-x-0 bottom-1/4 h-px bg-primary/30 animate-scanner z-10"></div>
@@ -386,6 +420,11 @@
         async function renderClassSelector() {
             const grid = document.getElementById('classesGrid');
             const classes = await DB.getClasses();
+            
+            // جلب تقارير اليوم للتحقق من الصفوف المقفلة
+            const today = new Date().toISOString().split('T')[0];
+            const todayRecords = await DB.getRecords(today);
+            const sentClassIds = todayRecords.map(r => r.classId);
 
             document.getElementById('classSelector').classList.remove('hidden');
             document.getElementById('attendanceView').classList.add('hidden');
@@ -396,21 +435,26 @@
                 return;
             }
 
-            grid.innerHTML = classes.map(c => `
-                <div onclick="selectClass('${c.id}')"
-                    class="liquid-glass liquid-glass-interactive liquid-glass-tint-primary rounded-xl p-4 sm:p-6 flex items-center justify-between">
+            grid.innerHTML = classes.map(c => {
+                const isSent = sentClassIds.includes(c.id);
+                return `
+                <div onclick="${isSent ? "UI.toast('تم إرسال تقرير هذا الصف بالفعل اليوم', 'info')" : `selectClass('${c.id}')`}"
+                    class="liquid-glass ${isSent ? 'opacity-60 grayscale-[0.5]' : 'liquid-glass-interactive liquid-glass-tint-primary'} rounded-xl p-4 sm:p-6 flex items-center justify-between transition-all">
                     <div class="flex items-center gap-3 sm:gap-4">
-                        <div class="liquid-glass-icon icon-primary w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center">
-                            <span class="material-symbols-outlined text-primary text-xl sm:text-2xl">class</span>
+                        <div class="liquid-glass-icon ${isSent ? 'bg-gray-200 text-gray-400' : 'icon-primary'} w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center">
+                            <span class="material-symbols-outlined text-xl sm:text-2xl">${isSent ? 'lock' : 'class'}</span>
                         </div>
                         <div>
-                            <h3 class="font-bold text-base sm:text-lg text-gray-800">${c.name}</h3>
-                            <p class="text-[10px] sm:text-xs text-gray-600">الشعبة: ${c.section}</p>
+                            <h3 class="font-bold text-base sm:text-lg ${isSent ? 'text-gray-500' : 'text-gray-800'}">${c.name}</h3>
+                            <p class="text-[10px] sm:text-xs text-gray-600">${isSent ? 'تم إرسال التقرير بنجاح ✅' : `الشعبة: ${c.section}`}</p>
                         </div>
                     </div>
-                    <span class="material-symbols-outlined text-gray-600 text-sm sm:text-base">arrow_back_ios</span>
-                </div>
-            `).join('');
+                    ${isSent ? 
+                        '<span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">مقفل</span>' : 
+                        '<span class="material-symbols-outlined text-gray-600 text-sm sm:text-base">arrow_back_ios</span>'
+                    }
+                </div>`;
+            }).join('');
         }
 
         async function selectClass(id) {
@@ -659,7 +703,7 @@
                     video: {
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
-                        facingMode: 'environment'
+                        facingMode: aiFacingMode
                     }
                 });
                 videoAi.srcObject = streamAi;
@@ -691,32 +735,127 @@
          * Local recognition handler
          */
         function handleCapturedDescriptor(descriptor, isHybrid = false) {
-            // Removed redundant 'Captured face' toast
-            
             const match = FaceDetection.findBestMatch(descriptor, students);
             
             if (match) {
-                attendance[match.id] = 'present';
-                renderList();
-                UI.toast(`تم التعرف على: ${match.name}`, 'success');
+                // If already present, don't toast again to avoid spam in record mode
+                if (attendance[match.id] !== 'present') {
+                    attendance[match.id] = 'present';
+                    renderList();
+                    UI.toast(`تم التعرف على: ${match.name}`, 'success');
+                }
                 
                 if (isHybrid) {
                     showQrSuccess(`تم التعرف:\n${match.name}`);
                 } else {
-                    // Visual feedback in AI modal
                     document.getElementById('aiCameraText').innerText = `تم التعرف على ${match.name} ✨`;
                 }
-            } else {
+            } else if (!isRecordMode) {
+                // Only show warning toast in manual mode to avoid record mode spam
                 UI.toast('لم يتم التعرف على الطالب في قاعدة البيانات', 'warning');
             }
             
             // Resume detection after a short delay
             setTimeout(() => {
                 if (FaceDetection.video && !FaceDetection.isActive) {
-                    FaceDetection.start(isHybrid, isHybrid); 
+                    // Record mode and Hybrid both use autoLock = true
+                    FaceDetection.start(isHybrid, isHybrid || isRecordMode); 
                 }
-            }, 2000);
+            }, isRecordMode ? 1200 : 2000); 
         }
+
+        let isRecordMode = false;
+        function toggleRecordMode() {
+            isRecordMode = !isRecordMode;
+            const btn = document.getElementById('recordBtn');
+            const indicator = document.getElementById('recordIndicator');
+            const captureBtn = document.getElementById('captureBtn');
+            
+            if (isRecordMode) {
+                btn.innerHTML = `<span class="material-symbols-outlined">stop_circle</span> إيقاف التسجيل`;
+                btn.classList.replace('!bg-white/10', 'bg-red-500/20');
+                btn.classList.add('!text-red-400', 'border-red-500/30');
+                indicator.classList.remove('hidden');
+                captureBtn.classList.add('opacity-50', 'pointer-events-none');
+                
+                // Switch to auto-lock mode for recording
+                FaceDetection.stop();
+                FaceDetection.start(false, true); 
+                document.getElementById('aiCameraText').innerText = 'جاري التحليل في الوقت الفعلي...';
+            } else {
+                btn.innerHTML = `<span class="material-symbols-outlined">videocam</span> تسجيل مستمر`;
+                btn.classList.replace('bg-red-500/20', '!bg-white/10');
+                btn.classList.remove('!text-red-400', 'border-red-500/30');
+                indicator.classList.add('hidden');
+                captureBtn.classList.remove('opacity-50', 'pointer-events-none');
+                
+                // Back to manual mode
+                FaceDetection.stop();
+                FaceDetection.start(false, false);
+                document.getElementById('aiCameraText').innerText = 'وجه الكاميرا واضغط على الزر عندما يكون الوجه داخل الدائرة';
+            }
+        }
+
+        function toggleAiMirror() {
+            aiMirrored = !aiMirrored;
+            updateAiMirrorUI();
+        }
+
+        function updateAiMirrorUI() {
+            const video = document.getElementById('videoAi');
+            const canvas = document.getElementById('canvasAi');
+            if (aiMirrored) {
+                video.classList.add('scale-x-[-1]');
+                canvas.classList.add('scale-x-[-1]');
+            } else {
+                video.classList.remove('scale-x-[-1]');
+                canvas.classList.remove('scale-x-[-1]');
+            }
+        }
+
+        async function switchAiCamera() {
+            aiFacingMode = aiFacingMode === 'environment' ? 'user' : 'environment';
+            // Default: mirror for front camera (user), no mirror for back (environment)
+            aiMirrored = (aiFacingMode === 'user');
+            updateAiMirrorUI();
+            
+            stopAiCamera();
+            if (isRecordMode) toggleRecordMode();
+            setTimeout(startAiCamera, 300);
+        }
+
+        let qrMirrored = false;
+        function toggleQrMirror() {
+            qrMirrored = !qrMirrored;
+            updateQrMirrorUI();
+        }
+
+        function updateQrMirrorUI() {
+            const video = document.querySelector('#qr-reader video');
+            const canvas = document.getElementById('canvasHybrid');
+            if (qrMirrored) {
+                if (video) video.classList.add('scale-x-[-1]');
+                canvas.classList.add('scale-x-[-1]');
+            } else {
+                if (video) video.classList.remove('scale-x-[-1]');
+                canvas.classList.remove('scale-x-[-1]');
+            }
+        }
+
+        function switchQrCamera() {
+            currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+            // Default: mirror for front camera
+            qrMirrored = (currentFacingMode === "user");
+            
+            stopQrScanner();
+            setTimeout(() => {
+                startQrScanner();
+                // We need to wait a bit for the video element to be created by the library
+                setTimeout(updateQrMirrorUI, 1000);
+            }, 300);
+        }
+
+        let aiFacingMode = 'environment';
 
         async function captureImageAi() {
             if (FaceDetection.currentDetection) {
@@ -746,20 +885,26 @@
 
         async function saveAttendance() {
             const date = new Date().toISOString().split('T')[0];
+            
+            // تحقق إضافي قبل الحفظ للتأكد من عدم التكرار
+            const existingRecords = await DB.getRecords(date);
+            if (existingRecords.some(r => r.classId === currentClass.id)) {
+                UI.toast('هذا الصف مقفل، تم إرسال تقريره مسبقاً', 'warning');
+                resetClassSelection();
+                return;
+            }
+
             const list = Object.entries(attendance).map(([id, status]) => ({ studentId: id, status }));
 
             try {
                 UI.toast('جاري حفظ التقرير...', 'info');
-                // No image data saved for privacy as per request
                 await DB.saveAttendance(date, currentClass.id, list, user.id, null);
-                UI.toast('تم حفظ التقرير بنجاح وجاري إرساله للمدير', 'success');
+                
+                await UI.alert('تم الإرسال بنجاح', 'تم تسجيل تقرير الحضور لهذا الصف. سيظهر الصف الآن كمقفل لبقية اليوم.');
+                resetClassSelection(); // العودة للقائمة لقفل الصف
             } catch (e) {
                 console.error("Save Error:", e);
-                if (e.name === 'QuotaExceededError') {
-                    UI.toast('فشل الحفظ: المساحة ممتلئة', 'error');
-                } else {
-                    UI.toast('حدث خطأ أثناء حفظ التقرير', 'error');
-                }
+                UI.toast('حدث خطأ أثناء حفظ التقرير', 'error');
             }
         }
 

@@ -71,7 +71,7 @@ const DB = {
     async seedData() {
         const batch = this.dbInstance.batch();
         const tRef = this.dbInstance.collection(this.KEYS.TEACHERS).doc('1');
-        batch.set(tRef, { name: 'مدير النظام', ministryId: '100', password: 'admin', role: 'admin', blocked: false });
+        batch.set(tRef, { name: 'مدير النظام', ministryId: '100', password: 'admin', role: 'admin' });
         
         const c1Ref = this.dbInstance.collection(this.KEYS.CLASSES).doc('c1');
         batch.set(c1Ref, { name: 'الصف العاشر', section: 'أ' });
@@ -154,7 +154,10 @@ const DB = {
     // Admin CRUD Methods
     async addTeacher(teacher) {
         const id = Date.now().toString();
-        teacher.blocked = false;
+        
+        // Defensive data normalization for AI Agent
+        if (teacher.ministryNumber && !teacher.ministryId) teacher.ministryId = teacher.ministryNumber;
+        
         await this.dbInstance.collection(this.KEYS.TEACHERS).doc(id).set(teacher);
     },
     async deleteTeacher(id) {
@@ -191,6 +194,9 @@ const DB = {
         await this.dbInstance.collection(this.KEYS.STUDENTS).doc(id).delete();
     },
     async updateTeacher(id, updatedData) {
+        // Defensive data normalization for AI Agent
+        if (updatedData.ministryNumber && !updatedData.ministryId) updatedData.ministryId = updatedData.ministryNumber;
+        
         await this.dbInstance.collection(this.KEYS.TEACHERS).doc(id).update(updatedData);
     },
     async updateClass(id, updatedData) {
